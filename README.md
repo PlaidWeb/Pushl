@@ -14,13 +14,18 @@ Mechanisms should include:
 
 * WebSub (with configured endpoint)
 * WebNotify (just calls into [ronkyuu](https://github.com/bear/ronkyuu) or [webmention-tools](https://github.com/vrypan/webmention-tools) or something)
+    * Should notify all extant URLs as well as any which were in the previous version but are now gone
+    * but be sensitive to ones with a `rel` that isn't in a whitelist (e.g. don't want author, self, nofollow, nonotify, navigation, etc)
+    * maybe it would be easier to just farm this out to telegraph...
 * Configurable Publ/Jekyll/Octopress/etc. syndication? (i.e. write out syndicated content to $HOME/mysite.example.com/content/syndicated/foo.md, possibly mirroring images locally)
     * Needs to have some sort of configurable template for the headers, with defaults for the more common systems (Publ, Pelican, Jekyll?)
+    * Could probably use Jinja2 for this
 
 Should be smart about caching; for example:
 
 * Store the feed locally, and use if-modified-since and file fingerprinting to determine if items need to be retrieved
 * Store the retrieved items locally, and use if-modified-since and file fingerprinting to determine if items need to be updated
+    * Should always retrieve items which are either new to the feed, or which disappeared since the last retrieval
 * This storage directory should be configurable, and have a reasonable default (like $HOME/.local/share/Pushl)
 
 Other worthwhile ideas:
