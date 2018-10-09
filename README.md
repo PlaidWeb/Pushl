@@ -4,41 +4,54 @@ A simple tool that parses content feeds and sends out appropriate push notificat
 
 See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motivation.
 
-## Basic usage
+## Usage
 
-```bash-session
+### Setup
+
+First, you'll want to have your Atom (or RSS) feed implement [the WebSub protocol](https://indieweb.org/WebSub). The short version is that you should have a `<link rel="hub" href="http://path/to/hub" />` in your Atom feed.
+
+There are a number of WebSub hubs available; I use [Superfeedr](http://pubsubhubbub.superfeedr.com).
+
+For [WebMentions](https://indieweb.org/Webmention), configure your site templates with the various microformats; by default, Pushl will use the following tags as the top-level entry container, in descending order of priority:
+
+* Anything with a `class` of `h-entry`
+* An `<article>` tag
+* Anything with a `class` of `entry`
+
+This may become configurable in the future.
+
+### Sending notifications
+
+```bash
 pip install pushl
 pushl -c cache_dir http://example.com/feed.xml
 ```
 
+If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a` flag will scan past entries for WebMention as well.
 
-## Back-of-the-envelope design
+### Advanced configuration
 
-Tool should be pip-installable
+TODO: whitelist/blacklist for `rel` links for outgoing WebMentions
 
-Should be configurable with a list of feeds (from command line or from a config.yaml or whatever) and associated push mechanisms to provide
+## TODO
+
+Tool should be pip-installable (DONE)
 
 Mechanisms should include:
 
-* WebSub (with configured endpoint)
-* WebNotify (just calls into [ronkyuu](https://github.com/bear/ronkyuu) or [webmention-tools](https://github.com/vrypan/webmention-tools) or something)
+* WebSub (DONE)
+* WebMention
     * Should notify all extant URLs as well as any which were in the previous version but are now gone
     * but be sensitive to ones with a `rel` that isn't in a whitelist (e.g. don't want author, self, nofollow, nonotify, navigation, etc)
-    * maybe it would be easier to just farm this out to telegraph...
 * Configurable Publ/Jekyll/Octopress/etc. syndication? (i.e. write out syndicated content to $HOME/mysite.example.com/content/syndicated/foo.md, possibly mirroring images locally)
     * Needs to have some sort of configurable template for the headers, with defaults for the more common systems (Publ, Pelican, Jekyll?)
     * Could probably use Jinja2 for this
-
-Should be smart about caching; for example:
-
-* Store the feed locally, and use if-modified-since and file fingerprinting to determine if items need to be retrieved
-* Store the retrieved items locally, and use if-modified-since and file fingerprinting to determine if items need to be updated
-    * Should always retrieve items which are either new to the feed, or which disappeared since the last retrieval
-* This storage directory should be configurable, and have a reasonable default (like $HOME/.local/share/Pushl)
+    * (Is probably out of scope though)
+    * (yeah this is definitely out of scope)
 
 Other worthwhile ideas:
 
-* Support [RFC 5005](https://tools.ietf.org/html/rfc5005)
+* Support [RFC 5005](https://tools.ietf.org/html/rfc5005) (DONE)
 * Detect deletions, maybe? This is a SHOULD in Webmention, and a good idea for the syndication
     * This is a lot easier in RFC 5005 feeds
     * Or possibly, compare set of current items with the items listed in the previous feed retrieval, and send out one last ping/update for the items which disappeared from the feed (since Webmention doesn't differentiate between those two cases)
