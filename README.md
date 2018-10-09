@@ -4,6 +4,15 @@ A simple tool that parses content feeds and sends out appropriate push notificat
 
 See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motivation.
 
+## Basic usage
+
+```bash-session
+pip install pushl
+pushl -c cache_dir http://example.com/feed.xml
+```
+
+
+
 ## Back-of-the-envelope design
 
 Tool should be pip-installable
