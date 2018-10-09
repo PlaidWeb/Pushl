@@ -51,7 +51,7 @@ setup(
         'requests',
         'feedparser',
         'webmentiontools',
-        'beautifulsoup4'
+        'beautifulsoup4',
     ],
 
     extras_require={
@@ -69,5 +69,7 @@ setup(
         'console_scripts': [
             'pushl = pushl.__main__:main'
         ]
-    }
+    },
+
+    python_requires=">=3.4",
 )
