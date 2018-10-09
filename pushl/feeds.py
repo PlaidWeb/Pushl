@@ -1,8 +1,5 @@
 """ Functionality for handling feeds """
 
-import pickle
-import os
-import hashlib
 import logging
 import collections
 
@@ -79,4 +76,4 @@ def update_websub(url, hub):
         LOGGER.info("Notification sent")
     else:
         LOGGER.warning("Notification returned status code %d: %s",
-                       rquest.status_code, request.text)
+                       request.status_code, request.text)

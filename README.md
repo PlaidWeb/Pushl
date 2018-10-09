@@ -12,7 +12,6 @@ pushl -c cache_dir http://example.com/feed.xml
 ```
 
 
-
 ## Back-of-the-envelope design
 
 Tool should be pip-installable

@@ -7,10 +7,11 @@ import collections
 from . import feeds, caching
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("pushl")
+LOGGER = logging.getLogger("pushl")
 
 
 def parse_args(*args):
+    """ Parse the arguments for the command """
     parser = argparse.ArgumentParser(
         description="Send push notifications for a feed")
     parser.add_argument('feed_url', type=str, nargs='+',
@@ -29,11 +30,8 @@ def parse_args(*args):
     return parser.parse_args(*args)
 
 
-def parse_feed(request):
-    pass
-
-
 def main():
+    """ main entry point """
     args = parse_args()
 
     cache = caching.Cache(args.cache_dir)
@@ -41,7 +39,7 @@ def main():
 
     while feed_urls:
         url = feed_urls.popleft()
-        logger.info("Retrieving %s", url)
+        LOGGER.info("Retrieving %s", url)
         feed, updated = feeds.get_feed(url, cache)
 
         if updated:

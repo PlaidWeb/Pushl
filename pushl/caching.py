@@ -9,6 +9,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Cache:
+    """ A very simple file-based object cache """
 
     def __init__(self, cache_dir=None):
         self.cache_dir = cache_dir
@@ -20,6 +21,7 @@ class Cache:
         return os.path.join(self.cache_dir, md5.hexdigest())
 
     def get(self, url):
+        """ Get the cached object """
         if not self.cache_dir:
             return None
 
@@ -28,15 +30,16 @@ class Cache:
             return pickle.load(open(filename, "rb"))
         except IOError:
             pass
-        except:
+        except:  # pylint:disable=bare-except
             LOGGER.exception(
                 "Error reading cache file %s for URL %s", filename, url)
 
         return None
 
     def set(self, url, obj):
+        """ Add an object into the cache """
         if not self.cache_dir:
-            return
+            return None
 
         try:
             os.makedirs(self.cache_dir)
