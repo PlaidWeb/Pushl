@@ -91,7 +91,7 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
 
     # Just use the whole document; eventually we want to filter this to only
     # links which live within an entry node
-    soup = BeautifulSoup(entry.text, features='html5lib')
+    soup = BeautifulSoup(entry.text, 'html.parser')
 
     return {urllib.parse.urljoin(entry.url, link.attrs['href'])
             for link in soup.find_all('a')
@@ -101,7 +101,12 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
 @functools.lru_cache()
 def get_webmention_endpoint(target):
     """ Given a target URL, determine the webmention endpoint, if any """
-    r = requests.get(target)
+    try:
+        r = requests.get(target)
+    except requests.RequestException:
+        LOGGER.exception("Could not determine endpoint for %s", target)
+        return None
+
     if not 200 <= r.status_code < 300:
         LOGGER.warning("Target %s got error code %d", target, r.status_code)
         return None
@@ -109,10 +114,15 @@ def get_webmention_endpoint(target):
     if 'webmention' in r.links:
         return r.links['webmention']['url']
 
-    soup = BeautifulSoup(r.text, features='html5lib')
+    # Don't try to get a link tag out of a non-text document
+    ctype = r.headers.get('content-type')
+    if 'html' not in ctype and 'xml' not in ctype:
+        return None
+
+    soup = BeautifulSoup(r.text, 'html.parser')
     for link in soup.find_all('link'):
         if 'rel' in link.attrs and 'webmention' in link.attrs['rel']:
-            return link.attrs['href']
+            return urllib.parse.urljoin(target, link.attrs['href'])
 
     return None
 
