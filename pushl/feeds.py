@@ -36,7 +36,7 @@ def get_feed(url, cache=None):
 
     if cache:
         LOGGER.debug("%s: Saving to cache", url)
-        cache.set('feed', cache_key, current)
+        cache.set('feed', url, current)
 
     LOGGER.debug("%s: Returning new content", url)
     return current, True

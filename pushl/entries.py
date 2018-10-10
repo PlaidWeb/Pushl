@@ -7,7 +7,6 @@ import hashlib
 
 from bs4 import BeautifulSoup
 import requests
-import ronkyuu
 
 from . import caching
 
@@ -18,17 +17,18 @@ class Entry:
     """ Encapsulates a local entry """
 
     def __init__(self, url, previous=None):
-        r = requests.get(url, headers=caching.make_headers(previous))
+        request = requests.get(url, headers=caching.make_headers(previous))
 
-        md5 = hashlib.md5(r.text.encode('utf-8'))
+        md5 = hashlib.md5(request.text.encode('utf-8'))
 
-        self.text = r.text
+        self.text = request.text
         self.digest = md5.digest()
-        self.url = r.url  # the canonical, final URL
-        self.status_code = r.status_code
-        self.headers = r.headers
+        self.url = request.url  # the canonical, final URL
+        self.status_code = request.status_code
+        self.headers = request.headers
 
 
+@functools.lru_cache()
 def get_entry(url, cache):
     """ Given an entry URL, return the entry document
 
@@ -41,7 +41,11 @@ def get_entry(url, cache):
 
     previous = cache.get('entry', url) if cache else None
 
-    current = Entry(url, previous)
+    try:
+        current = Entry(url, previous)
+    except requests.RequestException as error:
+        LOGGER.warning("%s: %s", url, error)
+        return None, None, False
 
     # Cache hit
     if current.status_code == 304:
@@ -65,6 +69,10 @@ def _check_rel(link, rel_whitelist, rel_blacklist):
     To explicitly allow links without a rel you can add None to the whitelist
     (e.g. ['in-reply-to',None])
     """
+
+    if not 'href' in link.attrs:
+        # degenerate link
+        return False
 
     rels = link.attrs.get('rel', [None])
 

@@ -51,6 +51,7 @@ setup(
         'requests',
         'feedparser',
         'beautifulsoup4',
+        'awesome-slugify'
     ],
 
     extras_require={

@@ -5,7 +5,7 @@ import logging
 import queue
 import concurrent.futures
 
-from . import feeds, caching, entries
+from . import feeds, caching, entries, webmentions
 
 LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
 
@@ -37,53 +37,67 @@ def parse_args(*args):
     return parser.parse_args(*args)
 
 
-class Worker:
+class Processor:
+    """ Top-level process controller """
 
     def __init__(self, args):
         self.args = args
         self.cache = caching.Cache(args.cache_dir)
         self.pending = queue.Queue()
         self.threadpool = concurrent.futures.ThreadPoolExecutor()
+        self.rel_whitelist = [None]
+        self.rel_blacklist = None
 
     def wait_complete(self):
+        while True:
+            item = self.pending.get(False)
+            if item is None:
+                break
+            item.result()
         self.threadpool.shutdown(True)
 
-    def submit(self, fn, *args, **kwargs):
-        self.threadpool.submit(fn, *args, **kwargs)
+    def submit(self, func, *args, **kwargs):
+        LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
+        self.pending.put(self.threadpool.submit(func, *args, **kwargs))
 
     def process_feed(self, url):
+        LOGGER.debug("process feed %s", url)
         feed, updated = feeds.get_feed(url, self.cache)
 
-        if updated:
-            for link in feed.feed.links:
-                #  RFC5005 archive links
-                if self.args.archive and link.get('rel') == 'prev-archive':
-                    self.threadpool.submit(self.process_feed, link['href'])
+        for link in feed.feed.links:
+            #  RFC5005 archive links
+            if self.args.archive and link.get('rel') == 'prev-archive':
+                LOGGER.info("Found prev-archive link %s", link)
+                self.submit(self.process_feed, link['href'])
 
-                # WebSub notification
-                if link.get('rel') == 'hub' and not feeds.is_archive(feed):
-                    self.threadpool.submit(
-                        feeds.update_websub, url, link['href'])
+            # WebSub notification
+            if updated and link.get('rel') == 'hub' and not feeds.is_archive(feed):
+                LOGGER.info("Found WebSub hub %s", link)
+                self.submit(feeds.update_websub, url, link['href'])
 
-                # Schedule the entries
-                for entry in feed.entries:
-                    self.threadpool.submit(self.process_entry, entry.link)
+            # Schedule the entries
+            for entry in feed.entries:
+                self.submit(self.process_entry, entry.link)
 
     def process_entry(self, url):
         entry, previous, updated = entries.get_entry(url, self.cache)
 
         if updated:
             # get the webmention targets
-            targets = entries.get_targets(entry, [None])
+            links = entries.get_targets(
+                entry, self.rel_whitelist, self.rel_blacklist)
             if previous:
-                targets = links.union(entries.get_targets(previous, [None]))
+                links = links.union(entries.get_targets(
+                    previous, self.rel_whitelist, self.rel_blacklist))
 
-            for target in targets:
-                self.threadpool.submit(self.send_webmention, entry, target)
+            for link in links:
+                self.submit(self.send_webmention, entry, link)
 
     def send_webmention(self, entry, url):
+        LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
         target = webmentions.get_target(url, self.cache)
-        target.send(entry)
+        if target:
+            target.send(entry)
 
 
 def main():
@@ -92,7 +106,7 @@ def main():
     logging.basicConfig(level=LOG_LEVELS[min(
         args.verbosity, len(LOG_LEVELS) - 1)])
 
-    worker = Worker(args)
+    worker = Processor(args)
 
     for url in args.feed_url:
         worker.submit(worker.process_feed, url)

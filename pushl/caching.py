@@ -5,6 +5,8 @@ import logging
 import hashlib
 import os
 
+from slugify import slugify
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -17,8 +19,11 @@ class Cache:
     def _get_cache_file(self, prefix, url):
         if not self.cache_dir:
             return None
+
         md5 = hashlib.md5(url.encode('utf-8'))
-        return os.path.join(self.cache_dir, prefix, md5.hexdigest())
+        filename = md5.hexdigest()[:5] + '.' + slugify(url)
+
+        return os.path.join(self.cache_dir, prefix, filename)
 
     def get(self, prefix, url):
         """ Get the cached object """
