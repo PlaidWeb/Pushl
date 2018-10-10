@@ -31,6 +31,8 @@ def parse_args(*args):
                          help='Do not process archive links in the feed')
     feature.set_defaults(archive=False)
 
+    # TODO: parsing for the rel whitelist/blacklist
+
     return parser.parse_args(*args)
 
 
@@ -41,6 +43,11 @@ def main():
         args.verbosity, len(LOG_LEVELS) - 1)])
 
     cache = caching.Cache(args.cache_dir)
+
+    # TODO this is really freaking slow and should go through a
+    # ThreadPoolExecutor instead. Also, sending webmentions should cache
+    # endpoints where possible and do the endpoint request and webmention send
+    # as a pipelined series of events and so on
 
     feed_urls = collections.deque(args.feed_url)
     entry_urls = collections.deque()

@@ -3,6 +3,7 @@
 import logging
 import urllib.parse
 import functools
+import hashlib
 
 from bs4 import BeautifulSoup
 import requests
@@ -23,7 +24,10 @@ class Entry:
 
         r = requests.get(url, headers=headers)
 
+        md5 = hashlib.md5(r.text.encode('utf-8'))
+
         self.text = r.text
+        self.digest = md5.digest()
         self.url = r.url  # the canonical, final URL
         self.status_code = r.status_code
         self.headers = r.headers
@@ -39,7 +43,9 @@ def get_entry(url, cache):
 
     Returns: 3-tuple of (current, previous, updated) """
 
-    previous = cache.get(url) if cache else None
+    cache_key = 'entry:' + url
+
+    previous = cache.get(cache_key) if cache else None
 
     current = Entry(url, previous)
 
@@ -49,8 +55,8 @@ def get_entry(url, cache):
 
     # Content updated
     if 200 <= current.status_code < 300:
-        cache.set(url, current)
-        return current, previous, True
+        cache.set(cache_key, current)
+        return current, previous, not previous or previous.digest != current.digest
 
     # An error occurred
     return None, previous, False
@@ -96,35 +102,6 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
     return {urllib.parse.urljoin(entry.url, link.attrs['href'])
             for link in soup.find_all('a')
             if _check_rel(link, rel_whitelist, rel_blacklist)}
-
-
-@functools.lru_cache()
-def get_webmention_endpoint(target):
-    """ Given a target URL, determine the webmention endpoint, if any """
-    try:
-        r = requests.get(target)
-    except requests.RequestException:
-        LOGGER.exception("Could not determine endpoint for %s", target)
-        return None
-
-    if not 200 <= r.status_code < 300:
-        LOGGER.warning("Target %s got error code %d", target, r.status_code)
-        return None
-
-    if 'webmention' in r.links:
-        return r.links['webmention']['url']
-
-    # Don't try to get a link tag out of a non-text document
-    ctype = r.headers.get('content-type')
-    if 'html' not in ctype and 'xml' not in ctype:
-        return None
-
-    soup = BeautifulSoup(r.text, 'html.parser')
-    for link in soup.find_all('link'):
-        if 'rel' in link.attrs and 'webmention' in link.attrs['rel']:
-            return urllib.parse.urljoin(target, link.attrs['href'])
-
-    return None
 
 
 def send_webmentions(entry, previous=None, rel_whitelist=None, rel_blacklist=None):
