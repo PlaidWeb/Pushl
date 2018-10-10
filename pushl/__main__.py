@@ -45,7 +45,7 @@ class Processor:
         self.cache = caching.Cache(args.cache_dir)
         self.pending = queue.Queue()
         self.threadpool = concurrent.futures.ThreadPoolExecutor()
-        self.rel_whitelist = [None]
+        self.rel_whitelist = None
         self.rel_blacklist = None
 
     def wait_complete(self):
