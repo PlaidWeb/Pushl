@@ -2,7 +2,8 @@
 
 import argparse
 import logging
-import collections
+import queue
+import concurrent.futures
 
 from . import feeds, caching, entries
 
@@ -36,49 +37,67 @@ def parse_args(*args):
     return parser.parse_args(*args)
 
 
+class Worker:
+
+    def __init__(self, args):
+        self.args = args
+        self.cache = caching.Cache(args.cache_dir)
+        self.pending = queue.Queue()
+        self.threadpool = concurrent.futures.ThreadPoolExecutor()
+
+    def wait_complete(self):
+        self.threadpool.shutdown(True)
+
+    def submit(self, fn, *args, **kwargs):
+        self.threadpool.submit(fn, *args, **kwargs)
+
+    def process_feed(self, url):
+        feed, updated = feeds.get_feed(url, self.cache)
+
+        if updated:
+            for link in feed.feed.links:
+                #  RFC5005 archive links
+                if self.args.archive and link.get('rel') == 'prev-archive':
+                    self.threadpool.submit(self.process_feed, link['href'])
+
+                # WebSub notification
+                if link.get('rel') == 'hub' and not feeds.is_archive(feed):
+                    self.threadpool.submit(
+                        feeds.update_websub, url, link['href'])
+
+                # Schedule the entries
+                for entry in feed.entries:
+                    self.threadpool.submit(self.process_entry, entry.link)
+
+    def process_entry(self, url):
+        entry, previous, updated = entries.get_entry(url, self.cache)
+
+        if updated:
+            # get the webmention targets
+            targets = entries.get_targets(entry, [None])
+            if previous:
+                targets = links.union(entries.get_targets(previous, [None]))
+
+            for target in targets:
+                self.threadpool.submit(self.send_webmention, entry, target)
+
+    def send_webmention(self, entry, url):
+        target = webmentions.get_target(url, self.cache)
+        target.send(entry)
+
+
 def main():
     """ main entry point """
     args = parse_args()
     logging.basicConfig(level=LOG_LEVELS[min(
         args.verbosity, len(LOG_LEVELS) - 1)])
 
-    cache = caching.Cache(args.cache_dir)
+    worker = Worker(args)
 
-    # TODO this is really freaking slow and should go through a
-    # ThreadPoolExecutor instead. Also, sending webmentions should cache
-    # endpoints where possible and do the endpoint request and webmention send
-    # as a pipelined series of events and so on
+    for url in args.feed_url:
+        worker.submit(worker.process_feed, url)
 
-    feed_urls = collections.deque(args.feed_url)
-    entry_urls = collections.deque()
-
-    while feed_urls:
-        url = feed_urls.popleft()
-        LOGGER.info("Retrieving %s", url)
-        feed, updated = feeds.get_feed(url, cache)
-
-        if updated:
-            # Process the various links...
-            for link in feed.feed.links:
-
-                # Archive links
-                if args.archive and link.get('rel') == 'prev-archive':
-                    feed_urls.append(link['href'])
-
-                # WebSub
-                if link.get('rel') == 'hub' and not feeds.is_archive(feed):
-                    feeds.update_websub(url, link['href'])
-
-                # Schedule the entries
-                entry_urls += [entry.link for entry in feed.entries]
-
-    while entry_urls:
-        url = entry_urls.popleft()
-        LOGGER.info("Retrieving %s", url)
-        entry, previous, updated = entries.get_entry(url, cache)
-
-        if updated:
-            entries.send_webmentions(entry, previous, [None])
+    worker.wait_complete()
 
 if __name__ == "__main__":
     main()

@@ -96,39 +96,3 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
     return {urllib.parse.urljoin(entry.url, link.attrs['href'])
             for link in soup.find_all('a')
             if _check_rel(link, rel_whitelist, rel_blacklist)}
-
-
-def send_webmentions(entry, previous=None, rel_whitelist=None, rel_blacklist=None):
-    """ Given an Entry object, send all outgoing webmentions
-
-    Arguments:
-
-    entry -- the current entry object
-    previous -- the previous version of the entry object, if available
-    rel_whitelist -- a list of whitelisted link relations (can include None)
-    rel_blacklist -- a list of blacklisted link relations (can include None)
-
-    Any link which was listed in the previous version but not the current version
-    will also get an outgoing WebMention, per the WebMention specification (to cover
-    link deletions).
-    """
-
-    targets = get_targets(entry, rel_whitelist, rel_blacklist)
-    if previous:
-        targets = targets.union(get_targets(
-            previous, rel_whitelist, rel_blacklist))
-
-    for target in targets:
-        LOGGER.debug("%s -> %s", entry.url, target)
-        endpoint = get_webmention_endpoint(target)
-        if endpoint:
-            r = requests.post(endpoint, data={
-                'source': entry.url,
-                'target': target
-            })
-            if 200 <= r.status_code < 300:
-                LOGGER.info("%s: ping of %s successful (%s)",
-                            endpoint, target, r.status_code)
-            else:
-                LOGGER.warning("%s: ping of %s failed (%s)",
-                               endpoint, target, r.status_code)

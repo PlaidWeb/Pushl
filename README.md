@@ -29,6 +29,8 @@ pushl -c cache_dir http://example.com/feed.xml
 
 If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a` flag will scan past entries for WebMention as well.
 
+You will probably want to run this in a cron job or the like.
+
 ### Advanced configuration
 
 TODO: whitelist/blacklist for `rel` links for outgoing WebMentions

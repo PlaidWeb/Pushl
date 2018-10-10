@@ -36,6 +36,21 @@ class Target:
 
         return None
 
+    def send(self, entry):
+        """ Send a webmention to this target from the specified entry """
+        if self.endpoint:
+            LOGGER.debug("%s -> %s", entry.url, self.url)
+            r = requests.post(self.endpoint, data={
+                'source': entry.url,
+                'target': self.url
+            })
+            if 200 <= r.status_code < 300:
+                LOGGER.info("%s: ping of %s successful (%s)",
+                            self.endpoint, self.url, r.status_code)
+            else:
+                LOGGER.warning("%s: ping of %s failed (%s)",
+                               self.endpoint, self.url, r.status_code)
+
 
 def get_target(url, cache):
     """ Given a URL, get the webmention endpoint """
@@ -45,6 +60,7 @@ def get_target(url, cache):
 
     # cache hit
     if current.status_code == 304:
-        return previous.endpoint
+        return previous
 
-    return current.endpoint
+    cache.set('target', url, current)
+    return current
