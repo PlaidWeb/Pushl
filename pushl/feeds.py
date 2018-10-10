@@ -20,8 +20,7 @@ def get_feed(url, cache=None):
     retval -- a tuple of feed,changed
     """
 
-    cache_key = 'feed:' + url
-    cached = cache.get(cache_key) if cache else None
+    cached = cache.get('feed', url) if cache else None
 
     current = feedparser.parse(url,
                                etag=cached.etag if cached else None,
@@ -37,7 +36,7 @@ def get_feed(url, cache=None):
 
     if cache:
         LOGGER.debug("%s: Saving to cache", url)
-        cache.set(cache_key, current)
+        cache.set('feed', cache_key, current)
 
     LOGGER.debug("%s: Returning new content", url)
     return current, True

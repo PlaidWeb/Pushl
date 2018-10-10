@@ -9,20 +9,16 @@ from bs4 import BeautifulSoup
 import requests
 import ronkyuu
 
+from . import caching
+
 LOGGER = logging.getLogger(__name__)
 
 
 class Entry:
+    """ Encapsulates a local entry """
 
     def __init__(self, url, previous=None):
-        headers = {}
-        if previous:
-            if 'etag' in previous.headers:
-                headers['if-none-match'] = previous.headers['etag']
-            if 'last-modified' in previous.headers:
-                headers['if-modified-since'] = previous.headers['last-modified']
-
-        r = requests.get(url, headers=headers)
+        r = requests.get(url, headers=caching.make_headers(previous))
 
         md5 = hashlib.md5(r.text.encode('utf-8'))
 
@@ -43,9 +39,7 @@ def get_entry(url, cache):
 
     Returns: 3-tuple of (current, previous, updated) """
 
-    cache_key = 'entry:' + url
-
-    previous = cache.get(cache_key) if cache else None
+    previous = cache.get('entry', url) if cache else None
 
     current = Entry(url, previous)
 
@@ -55,7 +49,7 @@ def get_entry(url, cache):
 
     # Content updated
     if 200 <= current.status_code < 300:
-        cache.set(cache_key, current)
+        cache.set('entry', url, current)
         return current, previous, not previous or previous.digest != current.digest
 
     # An error occurred
