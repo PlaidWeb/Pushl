@@ -28,6 +28,10 @@ class Entry:
         self.status_code = request.status_code
         self.headers = request.headers
 
+    @property
+    def soup(self):
+        return BeautifulSoup(self.text, 'html.parser')
+
 
 @functools.lru_cache()
 def get_entry(url, cache=None):
@@ -108,7 +112,7 @@ def _check_site(link, entry):
 
 def get_top_nodes(entry):
     """ Given an Entry object, return all of the top-level entry nodes """
-    soup = BeautifulSoup(entry.text, 'html.parser')
+    soup = entry.soup
     return (soup.find_all(class_="h-entry")
             or soup.find_all("article")
             or soup.find_all(class_="entry")
@@ -126,3 +130,17 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
                                  and _check_site(link, entry)})
 
     return targets
+
+
+def get_feeds(entry):
+    """ Given an Entry object, return all of the discovered feeds """
+    soup = entry.soup
+    return [urllib.parse.urljoin(entry.url, link.attrs['href'])
+            for link in soup.find_all('link', rel='alternate')
+            if _is_feed(link)]
+
+
+def _is_feed(link):
+    return ('href' in link.attrs
+            and link.attrs.get('type') in ('application/rss+xml',
+                                           'application/atom+xml'))

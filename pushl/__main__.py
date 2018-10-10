@@ -32,6 +32,13 @@ def parse_args(*args):
                          help='Do not process archive links in the feed')
     feature.set_defaults(archive=False)
 
+    feature = parser.add_mutually_exclusive_group(required=False)
+    feature.add_argument(
+        '--recurse', '-r', help="Recursively check other discovered feeds", action='store_true', dest='recurse')
+    feature.add_argument('--no-recurse', dest='recurse',
+                         action='store_false', help="Do not recurse into other feeds")
+    feature.set_defaults(recurse=False)
+
     return parser.parse_args(*args)
 
 
@@ -46,6 +53,10 @@ class Processor:
         self.pending = queue.Queue()
         self.rel_whitelist = None
         self.rel_blacklist = None
+
+        self.processed_feeds = set()
+        self.processed_entries = set()
+        self.processed_mentions = set()
 
     def submit(self, func, *args, **kwargs):
         """ Submit a task """
@@ -63,6 +74,11 @@ class Processor:
 
     def process_feed(self, url):
         """ process a feed """
+
+        if url in self.processed_feeds:
+            LOGGER.debug("Skipping already processed feed %s", url)
+            return
+
         LOGGER.debug("process feed %s", url)
         feed, updated = feeds.get_feed(url, self.cache)
 
@@ -81,8 +97,15 @@ class Processor:
             for entry in feed.entries:
                 self.submit(self.process_entry, entry.link)
 
+        self.processed_feeds.add(url)
+
     def process_entry(self, url):
         """ process an entry """
+
+        if url in self.processed_entries:
+            LOGGER.debug("Skipping already processed entry %s", url)
+            return
+
         entry, previous, updated = entries.get_entry(url, self.cache)
 
         if updated:
@@ -96,10 +119,26 @@ class Processor:
             for link in links:
                 self.submit(self.send_webmention, entry, link)
 
+            feeds = entries.get_feeds(entry)
+            for feed in feeds:
+                self.submit(self.process_feed, feed)
+
+        self.processed_entries.add(url)
+
     def send_webmention(self, entry, url):
         """ send a webmention from an entry to a URL """
+
+        if (entry.url, url) in self.processed_mentions:
+            LOGGER.debug(
+                "Skipping already processed mention %s -> %s", entry.url, url)
+
         LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
-        target = webmentions.get_target(url, self.cache)
+        try:
+            target = webmentions.get_target(url, self.cache)
+        except Exception as error:  # pylint:disable=broad-except
+            LOGGER.warning("%s -> %s: Got error %s", entry.url, url, error)
+            target = None
+
         if target:
             response = target.send(entry)
             if response and response.status_code == 429:
@@ -107,6 +146,8 @@ class Processor:
                 LOGGER.warning(
                     "%s Got try-again error from endpoint; Retry in %d seconds",
                     url, retry)
+
+        self.processed_mentions.add((entry.url, url))
 
 
 def main():

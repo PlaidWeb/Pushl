@@ -59,6 +59,9 @@ class Target:
             else:
                 LOGGER.warning("%s: ping of %s -> %s failed (%s)",
                                self.endpoint, entry.url, self.url, request.status_code)
+                if 'retry-after' in request.headers:
+                    LOGGER.warning("  %s retry-after %s",
+                                   self.endpoint, response.headers['retry-after'])
             return request
         return None
 
@@ -69,11 +72,7 @@ def get_target(url, cache):
 
     previous = cache.get('target', url) if cache else None
 
-    try:
-        current = Target(url)
-    except requests.RequestException as error:
-        LOGGER.warning("%s: %s", url, error)
-        return None
+    current = Target(url)
 
     # cache hit
     if current.status_code == 304:

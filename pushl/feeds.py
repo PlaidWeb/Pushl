@@ -70,10 +70,10 @@ def update_websub(url, hub):
     hub -- the hub URL
     """
 
-    LOGGER.info("Sending update notification for %s to %s", url, hub)
+    LOGGER.debug("Sending update notification for %s to %s", url, hub)
     request = requests.post(hub, {'hub.mode': 'publish', 'hub.url': url})
     if 200 <= request.status_code < 300:
-        LOGGER.info("Notification sent")
+        LOGGER.info("%s: WebSub notification sent to %s", url, hub)
     else:
-        LOGGER.warning("Notification returned status code %d: %s",
+        LOGGER.warning("%s: Hub %s returned status code %s: %s", url, hub,
                        request.status_code, request.text)
