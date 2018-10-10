@@ -50,7 +50,7 @@ setup(
     install_requires=[
         'requests',
         'feedparser',
-        'webmentiontools',
+        'ronkyuu',
         'beautifulsoup4',
     ],
 

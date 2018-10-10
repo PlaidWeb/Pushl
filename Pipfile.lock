@@ -38,12 +38,6 @@
             ],
             "version": "==3.0.4"
         },
-        "docopt": {
-            "hashes": [
-                "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"
-            ],
-            "version": "==0.6.2"
-        },
         "feedparser": {
             "hashes": [
                 "sha256:bd030652c2d08532c034c27fcd7c85868e7fa3cb2b17f230a44a6bbc92519bf9",
@@ -52,12 +46,25 @@
             ],
             "version": "==5.2.1"
         },
+        "html5lib": {
+            "hashes": [
+                "sha256:20b159aa3badc9d5ee8f5c647e5efd02ed2a66ab8d354930bd9ff139fc1dc0a3",
+                "sha256:66cb0dcfdbbc4f9c3ba1a63fdb511ffdbd4f513b2b6d81b80cd26ce6b3fb3736"
+            ],
+            "version": "==1.0.1"
+        },
         "idna": {
             "hashes": [
                 "sha256:156a6814fb5ac1fc6850fb002e0852d56c0c8d2531923a51032d1b70760e186e",
                 "sha256:684a38a6f903c1d71d6d5fac066b58d7768af4de2b832e426ec79c30daa94a16"
             ],
             "version": "==2.7"
+        },
+        "mf2py": {
+            "hashes": [
+                "sha256:84f1f8f2ff3f1deb1c30be497e7ccd805452996a662fd4a77f09e0105bede2c9"
+            ],
+            "version": "==1.1.2"
         },
         "pushl": {
             "editable": true,
@@ -70,6 +77,20 @@
             ],
             "version": "==2.19.1"
         },
+        "ronkyuu": {
+            "hashes": [
+                "sha256:5aa77b39d301bc174ab99ba8a53954627771cb501651a12103c58f51b32e84bf",
+                "sha256:85b25fef7f5fb0c93afd5377ea35b5ff72b2458f926bafdf10f0c9a1e19cab10"
+            ],
+            "version": "==0.6"
+        },
+        "six": {
+            "hashes": [
+                "sha256:70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9",
+                "sha256:832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb"
+            ],
+            "version": "==1.11.0"
+        },
         "urllib3": {
             "hashes": [
                 "sha256:a68ac5e15e76e7e5dd2b8f94007233e01effe3e50e8daddf69acfd81cb686baf",
@@ -77,11 +98,12 @@
             ],
             "version": "==1.23"
         },
-        "webmentiontools": {
+        "webencodings": {
             "hashes": [
-                "sha256:8c89069dff802dd9c62f799606e535d58d833c19152bf40d70dd1b8c85963b1c"
+                "sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78",
+                "sha256:b36a1c245f2d304965eb4e0a82848379241dc04b865afcc4aab16748587e1923"
             ],
-            "version": "==0.4.0"
+            "version": "==0.5.1"
         }
     },
     "develop": {

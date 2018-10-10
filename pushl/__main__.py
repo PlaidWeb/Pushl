@@ -4,9 +4,10 @@ import argparse
 import logging
 import collections
 
-from . import feeds, caching
+from . import feeds, caching, entries
 
-logging.basicConfig(level=logging.INFO)
+LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
+
 LOGGER = logging.getLogger("pushl")
 
 
@@ -19,6 +20,9 @@ def parse_args(*args):
     parser.add_argument('--cache', '-c', type=str, dest='cache_dir',
                         help='Cache storage directory',
                         required=False)
+    parser.add_argument("-v", "--verbosity", action="count",
+                        help="increase output verbosity",
+                        default=0)
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
@@ -33,9 +37,13 @@ def parse_args(*args):
 def main():
     """ main entry point """
     args = parse_args()
+    logging.basicConfig(level=LOG_LEVELS[min(
+        args.verbosity, len(LOG_LEVELS) - 1)])
 
     cache = caching.Cache(args.cache_dir)
+
     feed_urls = collections.deque(args.feed_url)
+    entry_urls = collections.deque()
 
     while feed_urls:
         url = feed_urls.popleft()
@@ -54,6 +62,16 @@ def main():
                 if link.get('rel') == 'hub' and not feeds.is_archive(feed):
                     feeds.update_websub(url, link['href'])
 
+                # Schedule the entries
+                entry_urls += [entry.link for entry in feed.entries]
+
+    while entry_urls:
+        url = entry_urls.popleft()
+        LOGGER.info("Retrieving %s", url)
+        entry, previous, updated = entries.get_entry(url, cache)
+
+        if updated:
+            entries.send_webmentions(entry, previous, [None])
 
 if __name__ == "__main__":
     main()
