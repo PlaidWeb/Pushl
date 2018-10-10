@@ -58,6 +58,8 @@ class Target:
             else:
                 LOGGER.warning("%s: ping of %s -> %s failed (%s)",
                                self.endpoint, entry.url, self.url, request.status_code)
+            return request
+        return None
 
 
 @functools.lru_cache()
@@ -68,7 +70,7 @@ def get_target(url, cache):
 
     try:
         current = Target(url)
-    except request.RequestException as error:
+    except requests.RequestException as error:
         LOGGER.warning("%s: %s", url, error)
         return None
 

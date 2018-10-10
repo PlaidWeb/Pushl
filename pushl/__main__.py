@@ -43,22 +43,22 @@ class Processor:
     def __init__(self, args):
         self.args = args
         self.cache = caching.Cache(args.cache_dir)
-        self.pending = queue.Queue()
         self.threadpool = concurrent.futures.ThreadPoolExecutor()
+        self.pending = queue.Queue()
         self.rel_whitelist = None
         self.rel_blacklist = None
-
-    def wait_complete(self):
-        while True:
-            item = self.pending.get(False)
-            if item is None:
-                break
-            item.result()
-        self.threadpool.shutdown(True)
 
     def submit(self, func, *args, **kwargs):
         LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
         self.pending.put(self.threadpool.submit(func, *args, **kwargs))
+
+    def wait_finished(self):
+        try:
+            while True:
+                queued = self.pending.get(timeout=1)
+                queued.result()
+        except queue.Empty:
+            LOGGER.info("Thread pool finished all tasks")
 
     def process_feed(self, url):
         LOGGER.debug("process feed %s", url)
@@ -97,7 +97,12 @@ class Processor:
         LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
         target = webmentions.get_target(url, self.cache)
         if target:
-            target.send(entry)
+            response = target.send(entry)
+            if response and response.status_code == 429:
+                retry = int(response.headers.get('retry-after', 30))
+                LOGGER.warning(
+                    "%s Got try-again error from endpoint; Retry in %d seconds",
+                    url, retry)
 
 
 def main():
@@ -111,7 +116,7 @@ def main():
     for url in args.feed_url:
         worker.submit(worker.process_feed, url)
 
-    worker.wait_complete()
+    worker.wait_finished()
 
 if __name__ == "__main__":
     main()

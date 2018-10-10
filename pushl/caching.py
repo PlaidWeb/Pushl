@@ -4,6 +4,7 @@ import pickle
 import logging
 import hashlib
 import os
+import threading
 
 from slugify import slugify
 
@@ -15,6 +16,7 @@ class Cache:
 
     def __init__(self, cache_dir=None):
         self.cache_dir = cache_dir
+        self.lock = threading.Lock()
 
     def _get_cache_file(self, prefix, url):
         if not self.cache_dir:
@@ -31,13 +33,12 @@ class Cache:
             return None
 
         filename = self._get_cache_file(prefix, url)
-        try:
-            return pickle.load(open(filename, "rb"))
-        except IOError:
-            pass
-        except:  # pylint:disable=bare-except
-            LOGGER.exception(
-                "Error reading cache file %s for URL %s", filename, url)
+
+        with self.lock:
+            try:
+                return pickle.load(open(filename, "rb"))
+            except:  # pylint:disable=bare-except
+                pass
 
         return None
 
@@ -46,13 +47,15 @@ class Cache:
         if not self.cache_dir:
             return None
 
-        try:
-            os.makedirs(os.path.join(self.cache_dir, prefix))
-        except OSError:
-            pass
-
         filename = self._get_cache_file(prefix, url)
-        return pickle.dump(obj, open(filename, 'wb'))
+
+        with self.lock:
+            try:
+                os.makedirs(os.path.join(self.cache_dir, prefix))
+            except OSError:
+                pass
+
+            return pickle.dump(obj, open(filename, 'wb'))
 
 
 def make_headers(previous):
