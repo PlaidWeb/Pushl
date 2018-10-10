@@ -61,7 +61,15 @@ class Processor:
     def submit(self, func, *args, **kwargs):
         """ Submit a task """
         LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
-        self.pending.put(self.threadpool.submit(func, *args, **kwargs))
+        self.pending.put(self.threadpool.submit(
+            self._run_wrapped, func, *args, **kwargs))
+
+    @staticmethod
+    def _run_wrapped(func, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except:  # pylint:disable=broad-except
+            LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
 
     def wait_finished(self, timeout=5):
         """ Wait for all tasks to finish """
@@ -95,7 +103,8 @@ class Processor:
 
             # Schedule the entries
             for entry in feed.entries:
-                self.submit(self.process_entry, entry.link)
+                if entry:
+                    self.submit(self.process_entry, entry.link)
 
         self.processed_feeds.add(url)
 
