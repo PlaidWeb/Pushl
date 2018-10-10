@@ -29,7 +29,7 @@ class Entry:
 
 
 @functools.lru_cache()
-def get_entry(url, cache):
+def get_entry(url, cache=None):
     """ Given an entry URL, return the entry document
 
     Arguments:
@@ -53,7 +53,8 @@ def get_entry(url, cache):
 
     # Content updated
     if 200 <= current.status_code < 300:
-        cache.set('entry', url, current)
+        if cache:
+            cache.set('entry', url, current)
         return current, previous, not previous or previous.digest != current.digest
 
     # An error occurred
@@ -94,13 +95,34 @@ def _check_rel(link, rel_whitelist, rel_blacklist):
     return True
 
 
+def _check_site(link, entry):
+    """ Check that a link is not on the same site as the referring entry """
+    target = urllib.parse.urlparse(link.attrs.get('href')).netloc.lower()
+    if not target:
+        return False
+
+    origin = urllib.parse.urlparse(entry.url).netloc.lower()
+    return target != origin
+
+
+def get_top_nodes(entry):
+    """ Given an Entry object, return all of the top-level entry nodes """
+    soup = BeautifulSoup(entry.text, 'html.parser')
+    return (soup.find_all(class_="h-entry")
+            or soup.find_all("article")
+            or soup.find_all(class_="entry")
+            or [soup])
+
+
 def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
     """ Given an Entry object, return all of the outgoing links. """
 
-    # Just use the whole document; eventually we want to filter this to only
-    # links which live within an entry node
-    soup = BeautifulSoup(entry.text, 'html.parser')
+    targets = set()
+    for top_node in get_top_nodes(entry):
+        targets = targets.union({urllib.parse.urljoin(entry.url, link.attrs['href'])
+                                 for link in top_node.find_all('a')
+                                 if _check_rel(link, rel_whitelist, rel_blacklist)
+                                 and _check_site(link, entry)})
 
-    return {urllib.parse.urljoin(entry.url, link.attrs['href'])
-            for link in soup.find_all('a')
-            if _check_rel(link, rel_whitelist, rel_blacklist)}
+    # TODO filter out links with the same domain as the entry
+    return targets
