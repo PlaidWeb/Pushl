@@ -14,6 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 class Target:
     """ A target of a webmention """
+    # pylint:disable=too-few-public-methods
 
     def __init__(self, url, previous=None):
         request = requests.get(url, headers=caching.make_headers(previous))

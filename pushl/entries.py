@@ -15,6 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 class Entry:
     """ Encapsulates a local entry """
+    # pylint:disable=too-few-public-methods
 
     def __init__(self, url, previous=None):
         request = requests.get(url, headers=caching.make_headers(previous))
@@ -124,5 +125,4 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
                                  if _check_rel(link, rel_whitelist, rel_blacklist)
                                  and _check_site(link, entry)})
 
-    # TODO filter out links with the same domain as the entry
     return targets

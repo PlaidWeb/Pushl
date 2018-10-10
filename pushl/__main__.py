@@ -32,8 +32,6 @@ def parse_args(*args):
                          help='Do not process archive links in the feed')
     feature.set_defaults(archive=False)
 
-    # TODO: parsing for the rel whitelist/blacklist
-
     return parser.parse_args(*args)
 
 
@@ -41,6 +39,7 @@ class Processor:
     """ Top-level process controller """
 
     def __init__(self, args):
+        """ Set up the process worker """
         self.args = args
         self.cache = caching.Cache(args.cache_dir)
         self.threadpool = concurrent.futures.ThreadPoolExecutor()
@@ -49,18 +48,21 @@ class Processor:
         self.rel_blacklist = None
 
     def submit(self, func, *args, **kwargs):
+        """ Submit a task """
         LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
         self.pending.put(self.threadpool.submit(func, *args, **kwargs))
 
-    def wait_finished(self):
+    def wait_finished(self, timeout=5):
+        """ Wait for all tasks to finish """
         try:
             while True:
-                queued = self.pending.get(timeout=1)
+                queued = self.pending.get(timeout=timeout)
                 queued.result()
         except queue.Empty:
             LOGGER.info("Thread pool finished all tasks")
 
     def process_feed(self, url):
+        """ process a feed """
         LOGGER.debug("process feed %s", url)
         feed, updated = feeds.get_feed(url, self.cache)
 
@@ -80,6 +82,7 @@ class Processor:
                 self.submit(self.process_entry, entry.link)
 
     def process_entry(self, url):
+        """ process an entry """
         entry, previous, updated = entries.get_entry(url, self.cache)
 
         if updated:
@@ -94,6 +97,7 @@ class Processor:
                 self.submit(self.send_webmention, entry, link)
 
     def send_webmention(self, entry, url):
+        """ send a webmention from an entry to a URL """
         LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
         target = webmentions.get_target(url, self.cache)
         if target:
