@@ -23,7 +23,7 @@ class Cache:
             return None
 
         md5 = hashlib.md5(url.encode('utf-8'))
-        filename = md5.hexdigest()[:5] + '.' + slugify(url)
+        filename = md5.hexdigest()[:8] + '.' + slugify(url)[:24]
 
         return os.path.join(self.cache_dir, prefix, filename)
 

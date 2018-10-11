@@ -37,7 +37,7 @@ TODO: whitelist/blacklist for `rel` links for outgoing WebMentions
 
 I use `pipenv` to keep my Python environments separate.
 
-On my server I created the directory `$(HOME)/pushl` and in it I ran the commands:
+On my server I created the directory `$(HOME)/pushl` and in it I ran the command:
 
 ```bash
 pipenv install pushl
@@ -50,11 +50,13 @@ and created this script as `$(HOME)/pushl/run.sh`:
 
 cd $(dirname "$0")
 LOG=$(date +%Y%m%d.log)
-flock -n .lockfile pipenv run pushl -avc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed > "$LOG" 2>&1
+flock -n .lockfile pipenv run pushl -rvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed >> "$LOG" 2>&1
 ```
 
 Then I have a cron job:
 
 ```crontab
-* * * * * $(HOME)/pushl/run.sh
+*/15 * * * * $(HOME)/pushl/run.sh
 ```
+
+which runs it every 15 minutes.
