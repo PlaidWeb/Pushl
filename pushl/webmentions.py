@@ -31,7 +31,7 @@ class Target:
     @staticmethod
     def _get_endpoint(request):
         for rel, link in request.links.items():
-            if 'webmention' in rel.split():
+            if link.get('url') and 'webmention' in rel.split():
                 return urllib.parse.urljoin(request.url, link['url'])
 
         # Don't try to get a link tag out of a non-text document
@@ -41,7 +41,8 @@ class Target:
 
         soup = BeautifulSoup(request.text, 'html.parser')
         for link in soup.find_all(('link', 'a'), rel='webmention'):
-            return urllib.parse.urljoin(request.url, link.attrs['href'])
+            if link.attrs.get('href'):
+                return urllib.parse.urljoin(request.url, link.attrs['href'])
 
         return None
 
