@@ -33,6 +33,7 @@ class Entry:
 
     @property
     def soup(self):
+        """ Get the BeautifulSoup instance for this entry """
         return BeautifulSoup(self.text, 'html.parser')
 
 

@@ -34,10 +34,12 @@ def parse_args(*args):
     feature.set_defaults(archive=False)
 
     feature = parser.add_mutually_exclusive_group(required=False)
-    feature.add_argument(
-        '--recurse', '-r', help="Recursively check other discovered feeds", action='store_true', dest='recurse')
+    feature.add_argument('--recurse', '-r',
+                         help="Recursively check other discovered feeds",
+                         action='store_true', dest='recurse')
     feature.add_argument('--no-recurse', dest='recurse',
-                         action='store_false', help="Do not recurse into other feeds")
+                         action='store_false',
+                         help="Do not recurse into other feeds")
     feature.set_defaults(recurse=False)
 
     return parser.parse_args(*args)
@@ -45,6 +47,7 @@ def parse_args(*args):
 
 class Processor:
     """ Top-level process controller """
+    # pylint:disable=too-many-instance-attributes
 
     def __init__(self, args):
         """ Set up the process worker """
@@ -72,7 +75,7 @@ class Processor:
             func(*args, **kwargs)
         except RuntimeError:
             pass
-        except:  # pylint:disable=broad-except
+        except:  # pylint:disable=bare-except
             LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
 
     def wait_finished(self, timeout=5):
@@ -134,8 +137,7 @@ class Processor:
             for link in links:
                 self.submit(self.send_webmention, entry, link)
 
-            feeds = entries.get_feeds(entry)
-            for feed in feeds:
+            for feed in entries.get_feeds(entry):
                 self.submit(self.process_feed, feed)
 
     def send_webmention(self, entry, url):

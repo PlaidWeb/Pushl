@@ -64,7 +64,7 @@ class Target:
                                self.endpoint, entry.url, self.url, request.status_code)
                 if 'retry-after' in request.headers:
                     LOGGER.warning("  %s retry-after %s",
-                                   self.endpoint, response.headers['retry-after'])
+                                   self.endpoint, request.headers['retry-after'])
             return request
         return None
 
