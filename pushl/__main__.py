@@ -4,6 +4,7 @@ import argparse
 import logging
 import queue
 import concurrent.futures
+import threading
 
 from . import feeds, caching, entries, webmentions
 
@@ -54,6 +55,7 @@ class Processor:
         self.rel_whitelist = None
         self.rel_blacklist = None
 
+        self.lock = threading.Lock()
         self.processed_feeds = set()
         self.processed_entries = set()
         self.processed_mentions = set()
@@ -68,6 +70,8 @@ class Processor:
     def _run_wrapped(func, *args, **kwargs):
         try:
             func(*args, **kwargs)
+        except RuntimeError:
+            pass
         except:  # pylint:disable=broad-except
             LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
 
@@ -83,9 +87,11 @@ class Processor:
     def process_feed(self, url):
         """ process a feed """
 
-        if url in self.processed_feeds:
-            LOGGER.debug("Skipping already processed feed %s", url)
-            return
+        with self.lock:
+            if url in self.processed_feeds:
+                LOGGER.debug("Skipping already processed feed %s", url)
+                return
+            self.processed_feeds.add(url)
 
         LOGGER.debug("process feed %s", url)
         feed, updated = feeds.get_feed(url, self.cache)
@@ -106,14 +112,14 @@ class Processor:
                 if entry:
                     self.submit(self.process_entry, entry.link)
 
-        self.processed_feeds.add(url)
-
     def process_entry(self, url):
         """ process an entry """
 
-        if url in self.processed_entries:
-            LOGGER.debug("Skipping already processed entry %s", url)
-            return
+        with self.lock:
+            if url in self.processed_entries:
+                LOGGER.debug("Skipping already processed entry %s", url)
+                return
+            self.processed_entries.add(url)
 
         entry, previous, updated = entries.get_entry(url, self.cache)
 
@@ -132,14 +138,14 @@ class Processor:
             for feed in feeds:
                 self.submit(self.process_feed, feed)
 
-        self.processed_entries.add(url)
-
     def send_webmention(self, entry, url):
         """ send a webmention from an entry to a URL """
 
-        if (entry.url, url) in self.processed_mentions:
-            LOGGER.debug(
-                "Skipping already processed mention %s -> %s", entry.url, url)
+        with self.lock:
+            if (entry.url, url) in self.processed_mentions:
+                LOGGER.debug(
+                    "Skipping already processed mention %s -> %s", entry.url, url)
+            self.processed_mentions.add((entry.url, url))
 
         LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
         try:
@@ -156,8 +162,6 @@ class Processor:
                     "%s Got try-again error from endpoint; Retry in %d seconds",
                     url, retry)
 
-        self.processed_mentions.add((entry.url, url))
-
 
 def main():
     """ main entry point """
@@ -170,7 +174,11 @@ def main():
     for url in args.feed_url:
         worker.submit(worker.process_feed, url)
 
-    worker.wait_finished()
+    try:
+        worker.wait_finished()
+    except KeyboardInterrupt:
+        LOGGER.error("Got keyboard interrupt; shutting down...")
+        worker.threadpool.shutdown(False)
 
 if __name__ == "__main__":
     main()
