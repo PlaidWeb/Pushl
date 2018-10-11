@@ -11,6 +11,7 @@ import requests
 from . import caching
 
 LOGGER = logging.getLogger(__name__)
+SCHEMA_VERSION = 1
 
 
 class Entry:
@@ -25,8 +26,10 @@ class Entry:
         self.text = request.text
         self.digest = md5.digest()
         self.url = request.url  # the canonical, final URL
+        self.original_url = url  # the original request URL
         self.status_code = request.status_code
         self.headers = request.headers
+        self.schema = SCHEMA_VERSION
 
     @property
     def soup(self):
@@ -44,7 +47,12 @@ def get_entry(url, cache=None):
 
     Returns: 3-tuple of (current, previous, updated) """
 
-    previous = cache.get('entry', url) if cache else None
+    try:
+        previous = cache.get('entry', url) if cache else None
+        if previous.schema != SCHEMA_VERSION:
+            previous = None
+    except AttributeError:
+        previous = None
 
     try:
         current = Entry(url, previous)
@@ -100,13 +108,13 @@ def _check_rel(link, rel_whitelist, rel_blacklist):
     return True
 
 
-def _check_site(link, entry):
-    """ Check that a link is not on the same site as the referring entry """
+def _domains_differ(link, source):
+    """ Check that a link is not on the same domain as the source URL """
     target = urllib.parse.urlparse(link.attrs.get('href')).netloc.lower()
     if not target:
         return False
 
-    origin = urllib.parse.urlparse(entry.url).netloc.lower()
+    origin = urllib.parse.urlparse(source).netloc.lower()
     return target != origin
 
 
@@ -127,7 +135,7 @@ def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
         targets = targets.union({urllib.parse.urljoin(entry.url, link.attrs['href'])
                                  for link in top_node.find_all('a')
                                  if _check_rel(link, rel_whitelist, rel_blacklist)
-                                 and _check_site(link, entry)})
+                                 and _domains_differ(link, entry.url)})
 
     return targets
 
