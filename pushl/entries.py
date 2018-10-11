@@ -66,13 +66,13 @@ def get_entry(url, cache=None):
         return previous, previous, False
 
     # Content updated
-    if 200 <= current.status_code < 300:
+    if 200 <= current.status_code < 300 or current.status_code == 410:
         if cache:
             cache.set('entry', url, current)
-        return current, previous, not previous or previous.digest != current.digest
 
-    # An error occurred
-    return None, previous, False
+    return current, previous, (not previous
+                               or previous.digest != current.digest
+                               or previous.status_code != current.status_code)
 
 
 def _check_rel(link, rel_whitelist, rel_blacklist):

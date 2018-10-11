@@ -2,6 +2,7 @@
 
 import logging
 import collections
+import itertools
 
 import feedparser
 import requests
@@ -17,7 +18,7 @@ def get_feed(url, cache=None):
     url -- The URL of the feed
     cache -- a caching.Cache object (optional)
 
-    retval -- a tuple of feed,changed
+    retval -- a tuple of feed,previous_version,changed
     """
 
     cached = cache.get('feed', url) if cache else None
@@ -29,18 +30,28 @@ def get_feed(url, cache=None):
 
     if current.bozo:
         LOGGER.error("%s: Got error %s", url, current.bozo_exception)
-        return current, False
+        return current, cached, False
 
     if current.status == 304:
         LOGGER.debug("%s: Reusing cached version", url)
-        return cached, False
+        return cached, cached, False
 
     if cache:
         LOGGER.debug("%s: Saving to cache", url)
         cache.set('feed', url, current)
 
     LOGGER.debug("%s: Returning new content", url)
-    return current, True
+    return current, cached, True
+
+
+def get_entry_links(feed, previous=None):
+    """ Given a parsed feed, return the links to its entries, including ones
+    which disappeared (as a quick-and-dirty way to support deletions)
+    """
+    entries = feed.entries
+    if previous:
+        entries = itertools.chain(entries, previous.entries)
+    return {entry['link'] for entry in entries if entry and entry.get('link')}
 
 
 def get_links(feed):
