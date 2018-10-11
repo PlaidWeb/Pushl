@@ -22,9 +22,10 @@ def get_feed(url, cache=None):
 
     cached = cache.get('feed', url) if cache else None
 
-    current = feedparser.parse(url,
-                               etag=cached.etag if cached else None,
-                               modified=cached.modified if cached else None)
+    current = feedparser.parse(
+        url,
+        etag=cached.get('etag') if cached else None,
+        modified=cached.get('modified') if cached else None)
 
     if current.bozo:
         LOGGER.error("%s: Got error %s", url, current.bozo_exception)
