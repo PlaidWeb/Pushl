@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from . import caching
 
 LOGGER = logging.getLogger(__name__)
+SCHEMA_VERSION = 1
 
 
 class Target:
@@ -22,6 +23,7 @@ class Target:
         self.url = request.url  # the canonical, final URL
         self.status_code = request.status_code
         self.headers = request.headers
+        self.schema = SCHEMA_VERSION
 
         if 200 <= request.status_code < 300:
             self.endpoint = self._get_endpoint(request)
@@ -72,6 +74,11 @@ def get_target(url, cache):
     """ Given a URL, get the webmention endpoint """
 
     previous = cache.get('target', url) if cache else None
+    try:
+        if previous.schema != SCHEMA_VERSION:
+            previous = None
+    except AttributeError:
+        previous = None
 
     current = Target(url)
 
