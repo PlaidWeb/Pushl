@@ -85,7 +85,7 @@ class Processor:
                 queued = self.pending.get(timeout=timeout)
                 queued.result()
         except queue.Empty:
-            LOGGER.debug("Thread pool finished all tasks")
+            LOGGER.info("All tasks finished")
 
     def process_feed(self, url):
         """ process a feed """
