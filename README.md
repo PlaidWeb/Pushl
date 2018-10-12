@@ -50,13 +50,14 @@ and created this script as `$(HOME)/pushl/run.sh`:
 
 cd $(dirname "$0")
 LOG=$(date +%Y%m%d.log)
-flock -n .lockfile pipenv run pushl -rvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed >> "$LOG" 2>&1
+date >> $LOG
+flock -n .lockfile path/to/pipenv run pushl -rvvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed >> "$LOG" 2>&1
 ```
 
 Then I have a cron job:
 
 ```crontab
-*/15 * * * * $(HOME)/pushl/run.sh
+*/15 * * * * $HOME/pushl/run.sh
 ```
 
 which runs it every 15 minutes.

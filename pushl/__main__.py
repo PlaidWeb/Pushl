@@ -17,7 +17,7 @@ def parse_args(*args):
     """ Parse the arguments for the command """
     parser = argparse.ArgumentParser(
         description="Send push notifications for a feed")
-    parser.add_argument('feed_url', type=str, nargs='+',
+    parser.add_argument('feeds', type=str, nargs='*', metavar='feed_url',
                         help='A URL for a feed to process')
     parser.add_argument('--cache', '-c', type=str, dest='cache_dir',
                         help='Cache storage directory',
@@ -25,6 +25,10 @@ def parse_args(*args):
     parser.add_argument("-v", "--verbosity", action="count",
                         help="increase output verbosity",
                         default=0)
+    parser.add_argument("-e", "--entry", nargs='+',
+                        help='URLs to entries/pages to index directly',
+                        metavar='entry_url',
+                        dest='entries')
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
@@ -136,8 +140,9 @@ class Processor:
             for link in links:
                 self.submit(self.send_webmention, entry, link)
 
-            for feed in entries.get_feeds(entry):
-                self.submit(self.process_feed, feed)
+            if self.args.recurse:
+                for feed in entries.get_feeds(entry):
+                    self.submit(self.process_feed, feed)
 
     def send_webmention(self, entry, url):
         """ send a webmention from an entry to a URL """
@@ -172,8 +177,11 @@ def main():
 
     worker = Processor(args)
 
-    for url in args.feed_url:
+    for url in args.feeds:
         worker.submit(worker.process_feed, url)
+
+    for url in args.entries:
+        worker.submit(worker.process_entry, url)
 
     try:
         worker.wait_finished()
