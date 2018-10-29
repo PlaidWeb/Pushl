@@ -105,7 +105,10 @@ class Processor:
 
         for link in feed.feed.links:
             #  RFC5005 archive links
-            if self.args.archive and link.get('rel') == 'prev-archive':
+            if self.args.archive and link.get('rel') in ('prev-archive',
+                                                         'next-archive',
+                                                         'prev-page',
+                                                         'next-page'):
                 LOGGER.info("Found prev-archive link %s", link)
                 self.submit(self.process_feed, link['href'])
 
