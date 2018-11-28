@@ -85,12 +85,7 @@ class Processor:
 
     @staticmethod
     def _run_wrapped(func, *args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except RuntimeError:
-            pass
-        except:  # pylint:disable=bare-except
-            LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
+        return func(*args, **kwargs)
 
     def wait_finished(self):
         """ Wait for all tasks to finish """
@@ -101,6 +96,10 @@ class Processor:
                 self.num_finished += 1
             except queue.Empty:
                 pass
+            except KeyboardInterrupt:
+                raise
+            except:  # pylint:disable=bare-except
+                LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
         LOGGER.info("%d/%d tasks finished",
                     self.num_finished, self.num_submitted)
 
@@ -202,7 +201,7 @@ def main():
     try:
         worker.wait_finished()
     except KeyboardInterrupt:
-        LOGGER.error("Got keyboard interrupt; shutting down...")
+        LOGGER.error("Got keyboard interrupt; shutting down")
         worker.threadpool.shutdown(False)
 
 if __name__ == "__main__":
