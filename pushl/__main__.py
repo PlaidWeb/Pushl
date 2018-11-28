@@ -29,6 +29,9 @@ def parse_args(*args):
                         help='URLs to entries/pages to index directly',
                         metavar='entry_url',
                         dest='entries')
+    parser.add_argument('--max-workers', '-w', type=int, dest='max_workers',
+                        help='Maximum number of worker threads',
+                        default=150)
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
@@ -57,7 +60,8 @@ class Processor:
         """ Set up the process worker """
         self.args = args
         self.cache = caching.Cache(args.cache_dir)
-        self.threadpool = concurrent.futures.ThreadPoolExecutor()
+        self.threadpool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=args.max_workers)
         self.pending = queue.Queue()
         self.rel_whitelist = None
         self.rel_blacklist = None
@@ -67,11 +71,17 @@ class Processor:
         self.processed_entries = set()
         self.processed_mentions = set()
 
+        self.num_submitted = 0
+        self.num_finished = 0
+
     def submit(self, func, *args, **kwargs):
         """ Submit a task """
         LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
-        self.pending.put(self.threadpool.submit(
-            self._run_wrapped, func, *args, **kwargs))
+        task = self.threadpool.submit(
+            self._run_wrapped, func, *args, **kwargs)
+        self.pending.put(task)
+        self.num_submitted += 1
+        return task
 
     @staticmethod
     def _run_wrapped(func, *args, **kwargs):
@@ -82,14 +92,17 @@ class Processor:
         except:  # pylint:disable=bare-except
             LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
 
-    def wait_finished(self, timeout=5):
+    def wait_finished(self, timeout=1):
         """ Wait for all tasks to finish """
-        try:
-            while True:
-                queued = self.pending.get(timeout=timeout)
+        while self.num_finished < self.num_submitted:
+            try:
+                queued = self.pending.get(timeout=0.1)
                 queued.result()
-        except queue.Empty:
-            LOGGER.info("All tasks finished")
+                self.num_finished += 1
+            except queue.Empty:
+                pass
+        LOGGER.info("%d/%d tasks finished",
+                    self.num_finished, self.num_submitted)
 
     def process_feed(self, url):
         """ process a feed """
@@ -180,10 +193,10 @@ def main():
 
     worker = Processor(args)
 
-    for url in args.feeds:
+    for url in args.feeds or []:
         worker.submit(worker.process_feed, url)
 
-    for url in args.entries:
+    for url in args.entries or []:
         worker.submit(worker.process_entry, url)
 
     try:
