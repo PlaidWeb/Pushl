@@ -92,7 +92,7 @@ class Processor:
         except:  # pylint:disable=bare-except
             LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
 
-    def wait_finished(self, timeout=1):
+    def wait_finished(self):
         """ Wait for all tasks to finish """
         while self.num_finished < self.num_submitted:
             try:
