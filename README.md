@@ -7,10 +7,10 @@ See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motiva
 ## Features
 
 * Will send WebSub notifications for feeds which declare a WebSub hub
-* Will send webnotify notifications for entries discovered on those feeds or specified directly
+* Will send WebMention notifications for entries discovered on those feeds or specified directly
 * Can perform autodiscovery of additional feeds on entry pages
-* Can do a full site submission on Atom feeds configured with [RFC 5005](https://tools.ietf.org/html/rfc5005)
-* When configured to use a cache directory, can detect entry deletions and updates to implement the webmention update and delete protocols
+* Can do a full backfill on Atom feeds configured with [RFC 5005](https://tools.ietf.org/html/rfc5005)
+* When configured to use a cache directory, can detect entry deletions and updates to implement the webmention update and delete protocols (as well as saving some time and bandwidth)
 
 
 ## Setup
@@ -110,7 +110,7 @@ and created this script as `$(HOME)/pushl/run.sh`:
 cd $(dirname "$0")
 LOG=$(date +%Y%m%d.log)
 date >> $LOG
-flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed >> "$LOG" 2>&1
+flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed 2>&1 | tee -a "$LOG"
 ```
 
 Then I have a cron job:
