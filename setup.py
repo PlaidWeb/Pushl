@@ -13,7 +13,7 @@ with open(path.join(here, 'README.md')) as f:
 setup(
     name='Pushl',
 
-    version='0.1.3',
+    version='0.1.4',
 
     description='A conduit for pushing changes in a feed to the rest of the IndieWeb',
 

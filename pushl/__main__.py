@@ -99,7 +99,7 @@ class Processor:
             except KeyboardInterrupt:
                 raise
             except:  # pylint:disable=bare-except
-                LOGGER.exception("%s(%s,%s): got error", func, args, kwargs)
+                LOGGER.exception("Task threw exception")
         LOGGER.info("%d/%d tasks finished",
                     self.num_finished, self.num_submitted)
 
