@@ -129,7 +129,8 @@ class Processor:
                 LOGGER.info("Found WebSub hub %s", link)
                 self.submit(feeds.update_websub, url, link['href'])
 
-            # Schedule the entries
+        # Schedule the entries
+        if updated:
             for entry in feeds.get_entry_links(feed, previous):
                 self.submit(self.process_entry, entry)
 
