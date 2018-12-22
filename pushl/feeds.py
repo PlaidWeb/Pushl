@@ -45,6 +45,16 @@ def get_feed(url, cache=None):
     return current, cached, True
 
 
+def get_archive_namespace(feed):
+    try:
+        for ns, url in feed.namespaces.items():
+            if url == 'http://purl.org/syndication/history/1.0':
+                return ns
+    except AttributeError:
+        pass
+    return None
+
+
 def get_entry_links(feed, previous=None):
     """ Given a parsed feed, return the links to its entries, including ones
     which disappeared (as a quick-and-dirty way to support deletions)
@@ -67,7 +77,9 @@ def is_archive(feed):
     """ Given a parsed feed, returns True if this is an archive feed """
     rels = get_links(feed)
 
-    return ('fh_archive' in feed.feed or
+    ns = get_archive_namespace(feed)
+
+    return ((ns and ns + '_archive' in feed.feed) or
             ('current' in rels and
              'self' in rels and
              rels['self'] != rels['current']
