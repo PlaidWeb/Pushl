@@ -6,6 +6,7 @@ import functools
 import hashlib
 
 from bs4 import BeautifulSoup
+import requests
 
 from . import caching
 from .common import session

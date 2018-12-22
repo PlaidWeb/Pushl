@@ -46,10 +46,11 @@ def get_feed(url, cache=None):
 
 
 def get_archive_namespace(feed):
+    """ Returns the known namespace of the RFC5005 extension, if any """
     try:
-        for ns, url in feed.namespaces.items():
+        for ns_prefix, url in feed.namespaces.items():
             if url == 'http://purl.org/syndication/history/1.0':
-                return ns
+                return ns_prefix
     except AttributeError:
         pass
     return None
@@ -75,15 +76,21 @@ def get_links(feed):
 
 def is_archive(feed):
     """ Given a parsed feed, returns True if this is an archive feed """
+
+    ns_prefix = get_archive_namespace(feed)
+    if ns_prefix:
+        if ns_prefix + '_archive' in feed.feed:
+            # This is declared to be an archive view
+            return True
+        if ns_prefix + '_current' in feed.feed:
+            # This is declared to be the current view
+            return False
+
+    # Either we don't have the namespace, or the view wasn't declared.
     rels = get_links(feed)
-
-    ns = get_archive_namespace(feed)
-
-    return ((ns and ns + '_archive' in feed.feed) or
-            ('current' in rels and
-             'self' in rels and
-             rels['self'] != rels['current']
-             ))
+    return ('current' in rels and
+            'self' in rels and
+            rels['self'] != rels['current'])
 
 
 def update_websub(url, hub):
