@@ -5,7 +5,8 @@ import collections
 import itertools
 
 import feedparser
-import requests
+
+from .common import session as requests
 
 LOGGER = logging.getLogger(__name__)
 
