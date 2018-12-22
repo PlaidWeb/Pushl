@@ -4,10 +4,10 @@ import urllib.parse
 import logging
 import functools
 
-import requests
 from bs4 import BeautifulSoup
 
 from . import caching
+from .common import session
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
@@ -18,7 +18,7 @@ class Target:
     # pylint:disable=too-few-public-methods
 
     def __init__(self, url, previous=None):
-        request = requests.get(url, headers=caching.make_headers(previous))
+        request = session.get(url, headers=caching.make_headers(previous))
 
         self.url = request.url  # the canonical, final URL
         self.status_code = request.status_code
@@ -52,7 +52,7 @@ class Target:
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
             LOGGER.debug("%s -> %s", entry.url, self.url)
-            request = requests.post(self.endpoint, data={
+            request = session.post(self.endpoint, data={
                 'source': entry.url,
                 'target': self.url
             })

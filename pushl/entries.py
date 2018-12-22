@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 import requests
 
 from . import caching
+from .common import session
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
@@ -19,7 +20,7 @@ class Entry:
     # pylint:disable=too-few-public-methods
 
     def __init__(self, url, previous=None):
-        request = requests.get(url, headers=caching.make_headers(previous))
+        request = session.get(url, headers=caching.make_headers(previous))
 
         md5 = hashlib.md5(request.text.encode('utf-8'))
 

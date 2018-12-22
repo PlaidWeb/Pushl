@@ -5,7 +5,8 @@ import collections
 import itertools
 
 import feedparser
-import requests
+
+from .common import session
 
 LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ def update_websub(url, hub):
     """
 
     LOGGER.debug("Sending update notification for %s to %s", url, hub)
-    request = requests.post(hub, {'hub.mode': 'publish', 'hub.url': url})
+    request = session.post(hub, {'hub.mode': 'publish', 'hub.url': url})
     if 200 <= request.status_code < 300:
         LOGGER.info("%s: WebSub notification sent to %s", url, hub)
     else:

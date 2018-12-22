@@ -6,7 +6,7 @@ import queue
 import concurrent.futures
 import threading
 
-from . import feeds, caching, entries, webmentions
+from . import feeds, caching, entries, webmentions, common
 
 LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
 
@@ -73,6 +73,8 @@ class Processor:
 
         self.num_submitted = 0
         self.num_finished = 0
+
+        common.set_pool_size(args.max_workers)
 
     def submit(self, func, *args, **kwargs):
         """ Submit a task """
