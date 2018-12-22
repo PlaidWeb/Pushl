@@ -115,19 +115,22 @@ class Processor:
         LOGGER.debug("process feed %s", url)
         feed, previous, updated = feeds.get_feed(url, self.cache)
 
-        for link in feed.feed.links:
-            #  RFC5005 archive links
-            if self.args.archive and link.get('rel') in ('prev-archive',
-                                                         'next-archive',
-                                                         'prev-page',
-                                                         'next-page'):
-                LOGGER.info("Found prev-archive link %s", link)
-                self.submit(self.process_feed, link['href'])
+        try:
+            for link in feed.feed.links:
+                #  RFC5005 archive links
+                if self.args.archive and link.get('rel') in ('prev-archive',
+                                                             'next-archive',
+                                                             'prev-page',
+                                                             'next-page'):
+                    LOGGER.info("Found prev-archive link %s", link)
+                    self.submit(self.process_feed, link['href'])
 
-            # WebSub notification
-            if updated and link.get('rel') == 'hub' and not feeds.is_archive(feed):
-                LOGGER.info("Found WebSub hub %s", link)
-                self.submit(feeds.update_websub, url, link['href'])
+                # WebSub notification
+                if updated and link.get('rel') == 'hub' and not feeds.is_archive(feed):
+                    LOGGER.info("Found WebSub hub %s", link)
+                    self.submit(feeds.update_websub, url, link['href'])
+        except AttributeError:
+            LOGGER.info("Feed %s has no links", url)
 
         # Schedule the entries
         if updated:
