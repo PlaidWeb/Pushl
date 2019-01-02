@@ -135,9 +135,8 @@ class Processor:
             LOGGER.info("Feed %s has no links", url)
 
         # Schedule the entries
-        if updated:
-            for entry in feeds.get_entry_links(feed, previous):
-                self.submit(self.process_entry, entry)
+        for entry in feeds.get_entry_links(feed, previous):
+            self.submit(self.process_entry, entry)
 
     def process_entry(self, url):
         """ process an entry """
