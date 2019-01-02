@@ -31,7 +31,7 @@ def parse_args(*args):
                         dest='entries')
     parser.add_argument('--max-workers', '-w', type=int, dest='max_workers',
                         help='Maximum number of worker threads',
-                        default=150)
+                        default=20)
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
