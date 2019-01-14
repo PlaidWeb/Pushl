@@ -3,7 +3,10 @@
 import urllib.parse
 import logging
 import functools
+import xmlrpc.client
+from abc import ABC, abstractmethod
 
+import defusedxml.xmlrpc
 from bs4 import BeautifulSoup
 
 from . import caching
@@ -11,6 +14,55 @@ from .common import session
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
+
+defusedxml.xmlrpc.monkey_patch()
+
+
+class Endpoint(ABC):
+    """ Base class for target endpoints """
+    # pylint:disable=too-few-public-methods
+
+    def __init__(self, endpoint):
+        self.endpoint = endpoint
+
+    @abstractmethod
+    def send(self, entry, target):
+        """ Send the mention via this protocol """
+
+
+class WebmentionEndpoint(Endpoint):
+    """ Implementation of the webmention protocol """
+    # pylint:disable=too-few-public-methods
+
+    def send(self, entry, target):
+        LOGGER.info("Sending Webmention %s -> %s", entry, target)
+        request = session.post(self.endpoint, data={
+            'source': entry,
+            'target': target
+        })
+        if 'retry-after' in request.headers:
+            LOGGER.warning("  %s retry-after %s",
+                           self.endpoint, request.headers['retry-after'])
+        return 200 <= request.status_code < 300
+
+
+class PingbackEndpoint(Endpoint):
+    """ Implementation of the pingback protocol """
+    # pylint:disable=too-few-public-methods
+
+    def send(self, entry, target):
+        LOGGER.info("Sending Pingback %s -> %s", entry, target)
+        server = xmlrpc.client.ServerProxy(self.endpoint)
+        try:
+            result = server.pingback.ping(entry, target)
+            LOGGER.debug("%s: %s", self.endpoint, result)
+            return True
+        except xmlrpc.client.ProtocolError as error:
+            LOGGER.warning('%s: %s', self.endpoint, error)
+        except xmlrpc.client.Fault as error:
+            LOGGER.warning('%s: Produced fault code %x (%s)',
+                           self.endpoint, error.faultCode, error.faultString)
+        return False
 
 
 class Target:
@@ -32,9 +84,15 @@ class Target:
 
     @staticmethod
     def _get_endpoint(request):
+        def join(url):
+            return urllib.parse.urljoin(request.url, url)
+
         for rel, link in request.links.items():
             if link.get('url') and 'webmention' in rel.split():
-                return urllib.parse.urljoin(request.url, link['url'])
+                return WebmentionEndpoint(join(link.get('url')))
+
+        if 'X-Pingback' in request.headers:
+            return PingbackEndpoint(join(request.headers['X-Pingback']))
 
         # Don't try to get a link tag out of a non-text document
         ctype = request.headers.get('content-type')
@@ -44,7 +102,12 @@ class Target:
         soup = BeautifulSoup(request.text, 'html.parser')
         for link in soup.find_all(('link', 'a'), rel='webmention'):
             if link.attrs.get('href'):
-                return urllib.parse.urljoin(request.url, link.attrs['href'])
+                return WebmentionEndpoint(urllib.parse.urljoin(request.url,
+                                                               link.attrs['href']))
+        for link in soup.find_all(('link', 'a'), rel='pingback'):
+            if link.attrs.get('href'):
+                return PingbackEndpoint(urllib.parse.urljoin(request.url,
+                                                             link.attrs['href']))
 
         return None
 
@@ -52,21 +115,10 @@ class Target:
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
             LOGGER.debug("%s -> %s", entry.url, self.url)
-            request = session.post(self.endpoint, data={
-                'source': entry.url,
-                'target': self.url
-            })
-            if 200 <= request.status_code < 300:
-                LOGGER.info("%s: ping of %s -> %s successful (%s)",
-                            self.endpoint, entry.url, self.url, request.status_code)
-            else:
-                LOGGER.warning("%s: ping of %s -> %s failed (%s)",
-                               self.endpoint, entry.url, self.url, request.status_code)
-                if 'retry-after' in request.headers:
-                    LOGGER.warning("  %s retry-after %s",
-                                   self.endpoint, request.headers['retry-after'])
-            return request
-        return None
+
+            if not self.endpoint.send(entry.url, self.url):
+                LOGGER.warning("%s: ping of %s -> %s failed",
+                               self.endpoint, entry.url, self.url)
 
 
 @functools.lru_cache()

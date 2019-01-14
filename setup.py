@@ -51,7 +51,8 @@ setup(
         'requests',
         'feedparser',
         'beautifulsoup4',
-        'awesome-slugify'
+        'awesome-slugify',
+        'defusedxml'
     ],
 
     extras_require={
