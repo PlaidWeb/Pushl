@@ -176,17 +176,9 @@ class Processor:
         LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
         try:
             target = webmentions.get_target(url, self.cache)
+            target.send(entry)
         except Exception as error:  # pylint:disable=broad-except
-            LOGGER.warning("%s -> %s: Got error %s", entry.url, url, error)
-            target = None
-
-        if target:
-            response = target.send(entry)
-            if response and response.status_code == 429:
-                retry = int(response.headers.get('retry-after', 30))
-                LOGGER.warning(
-                    "%s Got try-again error from endpoint; Retry in %d seconds",
-                    url, retry)
+            LOGGER.exception("%s -> %s: Got error %s", entry.url, url, error)
 
 
 def main():
