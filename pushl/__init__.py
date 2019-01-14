@@ -143,6 +143,6 @@ class Pushl:
         try:
             target = webmentions.get_target(self, url)
             if target:
-                target.send(entry)
+                target.send(self, entry)
         except Exception as error:  # pylint:disable=broad-except
             LOGGER.exception("%s -> %s: Got error %s", entry.url, url, error)
