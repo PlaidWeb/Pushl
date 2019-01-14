@@ -36,13 +36,17 @@ class WebmentionEndpoint(Endpoint):
 
     def send(self, entry, target):
         LOGGER.info("Sending Webmention %s -> %s", entry, target)
-        request = session.post(self.endpoint, data={
-            'source': entry,
-            'target': target
-        })
-        if 'retry-after' in request.headers:
-            LOGGER.warning("  %s retry-after %s",
-                           self.endpoint, request.headers['retry-after'])
+        try:
+            request = session.post(self.endpoint, data={
+                'source': entry,
+                'target': target
+            })
+            if 'retry-after' in request.headers:
+                LOGGER.warning("  %s retry-after %s",
+                               self.endpoint, request.headers['retry-after'])
+        except Exception as error:  # pylint:disable=broad-except
+            LOGGER.warning('%s: %s', self.endpoint, error)
+
         return 200 <= request.status_code < 300
 
 
@@ -57,11 +61,9 @@ class PingbackEndpoint(Endpoint):
             result = server.pingback.ping(entry, target)
             LOGGER.debug("%s: %s", self.endpoint, result)
             return True
-        except xmlrpc.client.ProtocolError as error:
+        except Exception as error:  # pylint:disable=broad-except
             LOGGER.warning('%s: %s', self.endpoint, error)
-        except xmlrpc.client.Fault as error:
-            LOGGER.warning('%s: Produced fault code %x (%s)',
-                           self.endpoint, error.faultCode, error.faultString)
+
         return False
 
 
@@ -115,10 +117,7 @@ class Target:
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
             LOGGER.debug("%s -> %s", entry.url, self.url)
-
-            if not self.endpoint.send(entry.url, self.url):
-                LOGGER.warning("%s: ping of %s -> %s failed",
-                               self.endpoint, entry.url, self.url)
+            self.endpoint.send(entry.url, self.url)
 
 
 @functools.lru_cache()
