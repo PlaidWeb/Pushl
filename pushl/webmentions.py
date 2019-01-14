@@ -6,11 +6,11 @@ import functools
 import xmlrpc.client
 from abc import ABC, abstractmethod
 
+import requests.exceptions
 import defusedxml.xmlrpc
 from bs4 import BeautifulSoup
 
 from . import caching
-from .common import session
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
@@ -22,7 +22,8 @@ class Endpoint(ABC):
     """ Base class for target endpoints """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, endpoint):
+    def __init__(self, config, endpoint):
+        self.config = config
         self.endpoint = endpoint
 
     @abstractmethod
@@ -37,10 +38,10 @@ class WebmentionEndpoint(Endpoint):
     def send(self, entry, target):
         LOGGER.info("Sending Webmention %s -> %s", entry, target)
         try:
-            request = session.post(self.endpoint, data={
+            request = self.config.session.post(self.endpoint, data={
                 'source': entry,
                 'target': target
-            })
+            }, timeout=self.config.timeout)
             if 'retry-after' in request.headers:
                 LOGGER.warning("  %s retry-after %s",
                                self.endpoint, request.headers['retry-after'])
@@ -71,30 +72,28 @@ class Target:
     """ A target of a webmention """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, url, previous=None):
-        request = session.get(url, headers=caching.make_headers(previous))
-
+    def __init__(self, config, request):
         self.url = request.url  # the canonical, final URL
         self.status_code = request.status_code
         self.headers = request.headers
         self.schema = SCHEMA_VERSION
 
         if 200 <= request.status_code < 300:
-            self.endpoint = self._get_endpoint(request)
+            self.endpoint = self._get_endpoint(config, request)
         else:
             self.endpoint = None
 
     @staticmethod
-    def _get_endpoint(request):
+    def _get_endpoint(config, request):
         def join(url):
             return urllib.parse.urljoin(request.url, url)
 
         for rel, link in request.links.items():
             if link.get('url') and 'webmention' in rel.split():
-                return WebmentionEndpoint(join(link.get('url')))
+                return WebmentionEndpoint(config, join(link.get('url')))
 
         if 'X-Pingback' in request.headers:
-            return PingbackEndpoint(join(request.headers['X-Pingback']))
+            return PingbackEndpoint(config, join(request.headers['X-Pingback']))
 
         # Don't try to get a link tag out of a non-text document
         ctype = request.headers.get('content-type')
@@ -104,11 +103,13 @@ class Target:
         soup = BeautifulSoup(request.text, 'html.parser')
         for link in soup.find_all(('link', 'a'), rel='webmention'):
             if link.attrs.get('href'):
-                return WebmentionEndpoint(urllib.parse.urljoin(request.url,
+                return WebmentionEndpoint(config,
+                                          urllib.parse.urljoin(request.url,
                                                                link.attrs['href']))
         for link in soup.find_all(('link', 'a'), rel='pingback'):
             if link.attrs.get('href'):
-                return PingbackEndpoint(urllib.parse.urljoin(request.url,
+                return PingbackEndpoint(config,
+                                        urllib.parse.urljoin(request.url,
                                                              link.attrs['href']))
 
         return None
@@ -121,21 +122,24 @@ class Target:
 
 
 @functools.lru_cache()
-def get_target(url, cache):
+def get_target(config, url):
     """ Given a URL, get the webmention endpoint """
 
-    previous = cache.get('target', url) if cache else None
+    previous = config.cache.get(
+        'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
+
     try:
-        if previous.schema != SCHEMA_VERSION:
-            previous = None
-    except AttributeError:
-        previous = None
+        request = config.session.get(
+            url, headers=caching.make_headers(previous), timeout=config.timeout)
+        current = Target(config, request)
+    except (TimeoutError, requests.exceptions.RequestException):
+        return None
 
-    current = Target(url)
-
-    # cache hit
     if current.status_code == 304:
+        # cache hit
         return previous
 
-    cache.set('target', url, current)
+    if config.cache:
+        config.cache.set('target', url, current)
+
     return current
