@@ -97,12 +97,12 @@ If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a
 I use [`pipenv`](http://pipenv.org) to keep my Python environments separate. My initial setup looked something like this:
 
 ```bash
-mkdir $(HOME)/pushl
-cd $(HOME)/pushl
+mkdir $HOME/pushl
+cd $HOME/pushl
 pipenv install pushl
 ```
 
-and created this script as `$(HOME)/pushl/run.sh`:
+and created this script as `$HOME/pushl/run.sh`:
 
 ```bash
 #!/bin/sh
