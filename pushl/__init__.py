@@ -9,7 +9,7 @@ import requests
 
 from . import feeds, caching, entries, webmentions
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 
 LOGGER = logging.getLogger("pushl")
 
