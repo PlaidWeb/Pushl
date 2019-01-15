@@ -15,7 +15,7 @@ with open(path.join(here, 'README.md')) as f:
 setup(
     name='Pushl',
 
-    version=pushl.VERSION,
+    version=pushl.__version__,
 
     description='A conduit for pushing changes in a feed to the rest of the IndieWeb',
 

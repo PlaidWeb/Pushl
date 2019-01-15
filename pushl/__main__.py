@@ -3,7 +3,7 @@
 import argparse
 import logging
 
-from . import Pushl, VERSION
+from . import Pushl, __version__
 
 
 LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
@@ -14,8 +14,11 @@ LOGGER = logging.getLogger("pushl.main")
 def parse_args(*args):
     """ Parse the arguments for the command """
     parser = argparse.ArgumentParser(
-        description="Send push notifications for a feed",
-        epilog="pushl v{version}\nhttps://github.com/PlaidWeb/Pushl".format(version=VERSION))
+        description="Send push notifications for a feed")
+
+    parser.add_argument('--version', action='version',
+                        version="%(prog)s " + __version__)
+
     parser.add_argument('feeds', type=str, nargs='*', metavar='feed_url',
                         help='A URL for a feed to process')
     parser.add_argument('--cache', '-c', type=str, dest='cache_dir',
