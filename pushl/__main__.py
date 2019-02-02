@@ -17,7 +17,7 @@ def parse_args(*args):
         description="Send push notifications for a feed")
 
     parser.add_argument('--version', action='version',
-                        version="%(prog)s " + __version__)
+                        version="%(prog)s " + __version__.__version__)
 
     parser.add_argument('feeds', type=str, nargs='*', metavar='feed_url',
                         help='A URL for a feed to process')
