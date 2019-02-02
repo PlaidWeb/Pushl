@@ -13,7 +13,7 @@ See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motiva
 * When configured to use a cache directory, can detect entry deletions and updates to implement the webmention update and delete protocols (as well as saving some time and bandwidth)
 
 
-## Setup
+## Site setup
 
 First, you'll want to have your Atom (or RSS) feed implement [the WebSub protocol](https://indieweb.org/WebSub). The short version is that you should have a `<link rel="hub" href="http://path/to/hub" />` in your feed's top-level element.
 
@@ -27,19 +27,19 @@ For [WebMentions](https://indieweb.org/Webmention), configure your site template
 
 For more information on how to configure your site templates, see the [microformats h-entry specification](http://microformats.org/wiki/h-entry).
 
-### Installation
+## Installation
 
 You can install it using `pip` with e.g.:
 
 ```bash
-pip install pushl
+pip3 install pushl
 ```
 
 However, I recommend installing it in a virtual environment with e.g.:
 
 ```bash
-virtualenv $HOME/lib/pushl
-$HOME/pushl/bin/pip install pushl
+virtualenv3 $HOME/lib/pushl
+$HOME/pushl/bin/pip3 install pushl
 ```
 
 and then putting a symlink to `$HOME/pushl/bin/pushl` to a directory in your $PATH, e.g.
@@ -53,7 +53,7 @@ ln -s $HOME/pushl/bin/pushl $HOME/bin/pushl
 ### Basic
 
 ```bash
-pushl -c cache_dir http://example.com/feed.xml
+pushl -c $HOME/var/pushl-cache http://example.com/feed.xml
 ```
 
 While you can run it without the `-c` argument, its use is highly recommended so that subsequent runs are both less spammy and so that it can detect changes and deletions.
@@ -97,12 +97,12 @@ If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a
 I use [`pipenv`](http://pipenv.org) to keep my Python environments separate. My initial setup looked something like this:
 
 ```bash
-mkdir $(HOME)/pushl
-cd $(HOME)/pushl
+mkdir $HOME/pushl
+cd $HOME/pushl
 pipenv install pushl
 ```
 
-and created this script as `$(HOME)/pushl/run.sh`:
+and created this script as `$HOME/pushl/run.sh`:
 
 ```bash
 #!/bin/sh

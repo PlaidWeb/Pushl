@@ -27,7 +27,7 @@ class Cache:
 
         return os.path.join(self.cache_dir, prefix, filename)
 
-    def get(self, prefix, url):
+    def get(self, prefix, url, schema_version=None):
         """ Get the cached object """
         if not self.cache_dir:
             return None
@@ -36,7 +36,10 @@ class Cache:
 
         with self.lock:
             try:
-                return pickle.load(open(filename, "rb"))
+                item = pickle.load(open(filename, "rb"))
+                if schema_version and schema_version != item.SCHEMA_VERSION:
+                    return None
+                return item
             except:  # pylint:disable=bare-except
                 pass
 

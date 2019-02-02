@@ -4,6 +4,8 @@
 from setuptools import setup, find_packages
 from os import path
 
+import pushl
+
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
@@ -13,7 +15,7 @@ with open(path.join(here, 'README.md')) as f:
 setup(
     name='Pushl',
 
-    version='0.1.5',
+    version=pushl.__version__,
 
     description='A conduit for pushing changes in a feed to the rest of the IndieWeb',
 
@@ -51,7 +53,8 @@ setup(
         'requests',
         'feedparser',
         'beautifulsoup4',
-        'awesome-slugify'
+        'awesome-slugify',
+        'defusedxml'
     ],
 
     extras_require={

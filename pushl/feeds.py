@@ -6,23 +6,21 @@ import itertools
 
 import feedparser
 
-from .common import session
-
 LOGGER = logging.getLogger(__name__)
 
 
-def get_feed(url, cache=None):
+def get_feed(config, url):
     """ Get the current parsed feed
 
     Arguments:
 
+    config -- the configuration
     url -- The URL of the feed
-    cache -- a caching.Cache object (optional)
 
     retval -- a tuple of feed,previous_version,changed
     """
 
-    cached = cache.get('feed', url) if cache else None
+    cached = config.cache.get('feed', url) if config.cache else None
 
     current = feedparser.parse(
         url,
@@ -37,9 +35,9 @@ def get_feed(url, cache=None):
         LOGGER.debug("%s: Reusing cached version", url)
         return cached, cached, False
 
-    if cache:
+    if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
-        cache.set('feed', url, current)
+        config.cache.set('feed', url, current)
 
     LOGGER.debug("%s: Returning new content", url)
     return current, cached, True
@@ -93,7 +91,7 @@ def is_archive(feed):
             rels['self'] != rels['current'])
 
 
-def update_websub(url, hub):
+def update_websub(config, url, hub):
     """ Given a parsed feed, send a WebSub update
 
     Arguments:
@@ -103,9 +101,13 @@ def update_websub(url, hub):
     """
 
     LOGGER.debug("Sending update notification for %s to %s", url, hub)
-    request = session.post(hub, {'hub.mode': 'publish', 'hub.url': url})
-    if 200 <= request.status_code < 300:
-        LOGGER.info("%s: WebSub notification sent to %s", url, hub)
-    else:
-        LOGGER.warning("%s: Hub %s returned status code %s: %s", url, hub,
-                       request.status_code, request.text)
+    try:
+        request = config.session.post(hub, {'hub.mode': 'publish', 'hub.url': url},
+                                      timeout=config.timeout)
+        if 200 <= request.status_code < 300:
+            LOGGER.info("%s: WebSub notification sent to %s", url, hub)
+        else:
+            LOGGER.warning("%s: Hub %s returned status code %s: %s", url, hub,
+                           request.status_code, request.text)
+    except TimeoutError:
+        LOGGER.warning("%s: WebSub update timed out with hub %s", url, hub)

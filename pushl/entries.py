@@ -9,18 +9,18 @@ from bs4 import BeautifulSoup
 import requests
 
 from . import caching
-from .common import session
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 
 
 class Entry:
-    """ Encapsulates a local entry """
+    """ Encapsulates a scanned entry """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, url, previous=None):
-        request = session.get(url, headers=caching.make_headers(previous))
+    def __init__(self, config, url, previous=None):
+        request = config.session.get(url, headers=caching.make_headers(previous),
+                                     timeout=config.args.timeout)
 
         md5 = hashlib.md5(request.text.encode('utf-8'))
 
@@ -39,25 +39,22 @@ class Entry:
 
 
 @functools.lru_cache()
-def get_entry(url, cache=None):
+def get_entry(config, url):
     """ Given an entry URL, return the entry document
 
     Arguments:
 
+    config -- the configuration
     url -- the URL of the entry
-    cache -- the cache of previous results
 
     Returns: 3-tuple of (current, previous, updated) """
 
-    try:
-        previous = cache.get('entry', url) if cache else None
-        if previous.schema != SCHEMA_VERSION:
-            previous = None
-    except AttributeError:
-        previous = None
+    previous = config.cache.get(
+        'entry', url,
+        schema_version=SCHEMA_VERSION) if config.cache else None
 
     try:
-        current = Entry(url, previous)
+        current = Entry(config, url, previous)
     except requests.RequestException as error:
         LOGGER.warning("%s: %s", url, error)
         return None, None, False
@@ -68,8 +65,8 @@ def get_entry(url, cache=None):
 
     # Content updated
     if 200 <= current.status_code < 300 or current.status_code == 410:
-        if cache:
-            cache.set('entry', url, current)
+        if config.cache:
+            config.cache.set('entry', url, current)
 
     return current, previous, (not previous
                                or previous.digest != current.digest
@@ -129,14 +126,14 @@ def get_top_nodes(entry):
             or [soup])
 
 
-def get_targets(entry, rel_whitelist=None, rel_blacklist=None):
+def get_targets(config, entry):
     """ Given an Entry object, return all of the outgoing links. """
 
     targets = set()
     for top_node in get_top_nodes(entry):
         targets = targets.union({urllib.parse.urljoin(entry.url, link.attrs['href'])
                                  for link in top_node.find_all('a')
-                                 if _check_rel(link, rel_whitelist, rel_blacklist)
+                                 if _check_rel(link, config.rel_whitelist, config.rel_blacklist)
                                  and _domains_differ(link, entry.url)})
 
     return targets
