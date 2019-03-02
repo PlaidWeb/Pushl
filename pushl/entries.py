@@ -83,7 +83,7 @@ def _check_rel(link, rel_whitelist, rel_blacklist):
     (e.g. ['in-reply-to',None])
     """
 
-    if not 'href' in link.attrs:
+    if 'href' not in link.attrs:
         # degenerate link
         return False
 
