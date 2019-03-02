@@ -121,7 +121,7 @@ class Pushl:
             # get the webmention targets
             links = entries.get_targets(self, entry)
             if previous:
-                links = links.union(entries.get_targets(self, previous))
+                links = links ^ entries.get_targets(self, previous)
 
             for link in links:
                 self.submit(self.send_webmention, entry, link)
