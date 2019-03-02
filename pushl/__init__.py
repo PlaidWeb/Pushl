@@ -119,6 +119,7 @@ class Pushl:
             # get the webmention targets
             links = entries.get_targets(self, entry)
             if previous:
+                # Only bother with links that changed from the last time
                 links = links ^ entries.get_targets(self, previous)
 
             for link in links:
