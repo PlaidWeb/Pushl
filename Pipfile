@@ -1,15 +1,12 @@
 [[source]]
+name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
-name = "pypi"
+
+[dev-packages]
 
 [packages]
 pushl = {editable = true,path = "."}
-e1839a8 = {path = ".",editable = true}
-
-[dev-packages]
-pylint = "*"
-twine = "*"
 
 [requires]
 python_version = "3.7"

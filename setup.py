@@ -2,9 +2,8 @@
 
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
+from distutils.util import convert_path
 from os import path
-
-import pushl
 
 here = path.abspath(path.dirname(__file__))
 
@@ -12,10 +11,15 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md')) as f:
     long_description = f.read()
 
+main_ns = {}
+ver_path = convert_path('pushl/__version__.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
+
 setup(
     name='Pushl',
 
-    version=pushl.__version__,
+    version=main_ns['__version__'],
 
     description='A conduit for pushing changes in a feed to the rest of the IndieWeb',
 

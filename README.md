@@ -38,7 +38,7 @@ pip3 install pushl
 However, I recommend installing it in a virtual environment with e.g.:
 
 ```bash
-virtualenv3 $HOME/lib/pushl
+virtualenv3 $HOME/pushl
 $HOME/pushl/bin/pip3 install pushl
 ```
 
