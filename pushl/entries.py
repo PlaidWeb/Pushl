@@ -131,10 +131,10 @@ def get_targets(config, entry):
 
     targets = set()
     for top_node in get_top_nodes(entry):
-        targets = targets.union({urllib.parse.urljoin(entry.url, link.attrs['href'])
-                                 for link in top_node.find_all('a')
-                                 if _check_rel(link, config.rel_whitelist, config.rel_blacklist)
-                                 and _domains_differ(link, entry.url)})
+        targets |= {urllib.parse.urljoin(entry.url, link.attrs['href'])
+                    for link in top_node.find_all('a')
+                    if _check_rel(link, config.rel_whitelist, config.rel_blacklist)
+                    and _domains_differ(link, entry.url)}
 
     return targets
 

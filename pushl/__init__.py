@@ -23,8 +23,10 @@ class Pushl:
         self.threadpool = concurrent.futures.ThreadPoolExecutor(
             max_workers=args.max_workers)
         self.pending = queue.Queue()
-        self.rel_whitelist = None
-        self.rel_blacklist = None
+        self.rel_whitelist = args.rel_whitelist.split(
+            ',') if args.rel_whitelist else None
+        self.rel_blacklist = args.rel_blacklist.split(
+            ',') if args.rel_blacklist else None
 
         self.lock = threading.Lock()
         self.processed_feeds = set()

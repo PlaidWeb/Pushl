@@ -54,6 +54,13 @@ def parse_args(*args):
                          help="Do not recurse into other feeds")
     feature.set_defaults(recurse=False)
 
+    feature.add_argument('--rel-whitelist', '-w', dest='rel_whitelist', type=str,
+                         help="Comma-separated list of link RELs to whitelist"
+                         + " for sending webmentions")
+    feature.add_argument('--rel-blacklist', '-b', dest='rel_blacklist', type=str,
+                         help="Comma-separated list of link RELs to blacklist"
+                         + " from sending webmentions")
+
     return parser.parse_args(*args)
 
 
