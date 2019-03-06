@@ -144,4 +144,4 @@ class Pushl:
             if target:
                 target.send(self, entry)
         except Exception as error:  # pylint:disable=broad-except
-            LOGGER.exception("%s -> %s: Got error %s", entry.url, url, error)
+            LOGGER.error("%s -> %s: Got error %s", entry.url, url, error)
