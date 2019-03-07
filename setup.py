@@ -69,9 +69,9 @@ setup(
 
     project_urls={
         'Bug Reports': 'https://github.com/PlaidWeb/Pushl/issues',
-        'Funding': 'https://patreon.com/fluffy',
         'Source': 'https://github.com/PlaidWeb/Pushl/',
-        'Discord': 'https://discord.gg/xADP3ja'
+        'Discord': 'https://discord.gg/xADP3ja',
+        'Funding': 'https://liberapay.com/fluffy',
     },
 
     entry_points={
