@@ -44,12 +44,15 @@ class WebmentionEndpoint(Endpoint):
                                            data={'source': entry,
                                                  'target': target
                                                  }) as request:
+                result = request.status
+
                 if 'retry-after' in request.headers:
                     LOGGER.info("  %s retry-after %s",
                                 self.endpoint, request.headers['retry-after'])
                     asyncio.sleep(float(request.headers['retry-after']))
                     retries -= 1
-                result = request.status
+                else:
+                    break
 
         return 200 <= result < 300
 

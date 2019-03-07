@@ -95,7 +95,6 @@ async def _run(loop):
             pending.append(worker.process_entry(url))
 
         await asyncio.wait(pending)
-        print('hi')
 
 
 if __name__ == "__main__":

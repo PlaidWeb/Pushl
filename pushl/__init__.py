@@ -73,7 +73,6 @@ class Pushl:
         for entry in entries:
             pending.append(self.process_entry(entry))
 
-        print('process_feed pending', pending)
         await asyncio.wait(pending)
 
     async def process_entry(self, url):
@@ -103,7 +102,6 @@ class Pushl:
                 for feed in entries.get_feeds(entry):
                     pending.append(self.process_feed(feed))
 
-        print('process_entry pending', pending)
         await asyncio.wait(pending)
 
     async def send_webmention(self, entry, url):
