@@ -5,7 +5,8 @@ import queue
 import threading
 import logging
 
-import requests
+import aiohttp
+import asyncio
 
 from . import feeds, caching, entries, webmentions
 
@@ -16,19 +17,16 @@ class Pushl:
     """ Top-level process controller """
     # pylint:disable=too-many-instance-attributes
 
-    def __init__(self, args):
+    def __init__(self, session, args):
         """ Set up the process worker """
         self.args = args
         self.cache = caching.Cache(args.cache_dir) if args.cache_dir else None
-        self.threadpool = concurrent.futures.ThreadPoolExecutor(
-            max_workers=args.max_workers)
         self.pending = queue.Queue()
         self.rel_whitelist = args.rel_whitelist.split(
             ',') if args.rel_whitelist else None
         self.rel_blacklist = args.rel_blacklist.split(
             ',') if args.rel_blacklist else None
 
-        self.lock = threading.Lock()
         self.processed_feeds = set()
         self.processed_entries = set()
         self.processed_mentions = set()
@@ -36,114 +34,87 @@ class Pushl:
         self.num_submitted = 0
         self.num_finished = 0
 
-        self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=args.max_workers, pool_maxsize=args.max_workers)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        self.session = session
 
-        self.timeout = args.timeout
-
-    def submit(self, func, *args, **kwargs):
-        """ Submit a task """
-        LOGGER.debug("submit %s (%s, %s)", func, args, kwargs)
-        task = self.threadpool.submit(
-            self._run_wrapped, func, *args, **kwargs)
-        self.pending.put(task)
-        self.num_submitted += 1
-        return task
-
-    @staticmethod
-    def _run_wrapped(func, *args, **kwargs):
-        return func(*args, **kwargs)
-
-    def wait_finished(self):
-        """ Wait for all tasks to finish """
-        while self.num_finished < self.num_submitted:
-            try:
-                queued = self.pending.get(timeout=0.1)
-                queued.result()
-                self.num_finished += 1
-            except queue.Empty:
-                pass
-            except KeyboardInterrupt:
-                raise
-            except:  # pylint:disable=bare-except
-                LOGGER.exception("Task threw exception")
-        LOGGER.info("%d/%d tasks finished",
-                    self.num_finished, self.num_submitted)
-
-    def process_feed(self, url):
+    async def process_feed(self, url):
         """ process a feed """
 
-        with self.lock:
-            if url in self.processed_feeds:
-                LOGGER.debug("Skipping already processed feed %s", url)
-                return
-            self.processed_feeds.add(url)
+        if url in self.processed_feeds:
+            LOGGER.debug("Skipping already processed feed %s", url)
+            return
+        self.processed_feeds.add(url)
 
         LOGGER.debug("process feed %s", url)
-        feed, previous, updated = feeds.get_feed(self, url)
+        feed, previous, updated = await feeds.get_feed(self, url)
+
+        pending = []
 
         try:
-            for link in feed.feed.links:
+            for link in feed.links:
                 #  RFC5005 archive links
                 if self.args.archive and link.get('rel') in ('prev-archive',
                                                              'next-archive',
                                                              'prev-page',
                                                              'next-page'):
-                    LOGGER.info("Found prev-archive link %s", link)
-                    self.submit(self.process_feed, link['href'])
+                    LOGGER.info("Found archive link %s", link)
+                    pending.append(self.process_feed(link['href']))
 
                 # WebSub notification
-                if updated and link.get('rel') == 'hub' and not feeds.is_archive(feed):
+                if updated and link.get('rel') == 'hub' and not feed.is_archive:
                     LOGGER.info("Found WebSub hub %s", link)
-                    self.submit(feeds.update_websub, self, url, link['href'])
+                    pending.append(feed.update_websub(self, link['href']))
         except (AttributeError, KeyError):
             LOGGER.debug("Feed %s has no links", url)
 
         # Schedule the entries
-        for entry in feeds.get_entry_links(feed, previous):
-            self.submit(self.process_entry, entry)
+        entries = set(feed.entry_links)
+        if previous:
+            entries |= set(previous.entry_links)
+        for entry in entries:
+            pending.append(self.process_entry(entry))
 
-    def process_entry(self, url):
+        print('process_feed pending', pending)
+        await asyncio.wait(pending)
+
+    async def process_entry(self, url):
         """ process an entry """
 
-        with self.lock:
-            if url in self.processed_entries:
-                LOGGER.debug("Skipping already processed entry %s", url)
-                return
-            self.processed_entries.add(url)
+        if url in self.processed_entries:
+            LOGGER.debug("Skipping already processed entry %s", url)
+            return
+        self.processed_entries.add(url)
 
-        entry, previous, updated = entries.get_entry(self, url)
+        LOGGER.debug("process entry %s", url)
+        entry, previous, updated = await entries.get_entry(self, url)
+
+        pending = []
 
         if updated:
             # get the webmention targets
-            links = entries.get_targets(self, entry)
+            links = entry.get_targets(self)
             if previous:
                 # Only bother with links that changed from the last time
-                links = links ^ entries.get_targets(self, previous)
+                links = links ^ previous.get_targets(self)
 
             for link in links:
-                self.submit(self.send_webmention, entry, link)
+                pending.append(self.send_webmention(entry, link))
 
             if self.args.recurse:
                 for feed in entries.get_feeds(entry):
-                    self.submit(self.process_feed, feed)
+                    pending.append(self.process_feed(feed))
 
-    def send_webmention(self, entry, url):
+        print('process_entry pending', pending)
+        await asyncio.wait(pending)
+
+    async def send_webmention(self, entry, url):
         """ send a webmention from an entry to a URL """
 
-        with self.lock:
-            if (entry.url, url) in self.processed_mentions:
-                LOGGER.debug(
-                    "Skipping already processed mention %s -> %s", entry.url, url)
-            self.processed_mentions.add((entry.url, url))
+        if (entry.url, url) in self.processed_mentions:
+            LOGGER.debug(
+                "Skipping already processed mention %s -> %s", entry.url, url)
+        self.processed_mentions.add((entry.url, url))
 
-        LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
-        try:
-            target = webmentions.get_target(self, url)
-            if target:
-                target.send(self, entry)
-        except Exception as error:  # pylint:disable=broad-except
-            LOGGER.error("%s -> %s: Got error %s", entry.url, url, error)
+        target = await webmentions.get_target(self, url)
+        if target:
+            LOGGER.debug("Sending webmention %s -> %s", entry.url, url)
+            await target.send(self, entry)

@@ -5,8 +5,10 @@ import logging
 import functools
 import xmlrpc.client
 from abc import ABC, abstractmethod
+import asyncio
+from lxml import etree
 
-import requests.exceptions
+import aiohttp
 import defusedxml.xmlrpc
 from bs4 import BeautifulSoup
 
@@ -26,7 +28,7 @@ class Endpoint(ABC):
         self.endpoint = endpoint
 
     @abstractmethod
-    def send(self, config, entry, target):
+    async def send(self, config, entry, target):
         """ Send the mention via this protocol """
 
 
@@ -34,59 +36,84 @@ class WebmentionEndpoint(Endpoint):
     """ Implementation of the webmention protocol """
     # pylint:disable=too-few-public-methods
 
-    def send(self, config, entry, target):
+    async def send(self, config, entry, target):
         LOGGER.info("Sending Webmention %s -> %s", entry, target)
-        try:
-            request = config.session.post(self.endpoint, data={
-                'source': entry,
-                'target': target
-            }, timeout=config.timeout)
-            if 'retry-after' in request.headers:
-                LOGGER.warning("  %s retry-after %s",
-                               self.endpoint, request.headers['retry-after'])
+        retries = 5
+        while retries > 0:
+            async with config.session.post(self.endpoint,
+                                           data={'source': entry,
+                                                 'target': target
+                                                 }) as request:
+                if 'retry-after' in request.headers:
+                    LOGGER.info("  %s retry-after %s",
+                                self.endpoint, request.headers['retry-after'])
+                    asyncio.sleep(float(request.headers['retry-after']))
+                    retries -= 1
+                result = request.status
 
-            return 200 <= request.status_code < 300
-        except Exception as error:  # pylint:disable=broad-except
-            LOGGER.warning('%s: %s', self.endpoint, error)
-            return False
+        return 200 <= result < 300
 
 
 class PingbackEndpoint(Endpoint):
     """ Implementation of the pingback protocol """
     # pylint:disable=too-few-public-methods
 
-    def send(self, config, entry, target):
-        LOGGER.info("Sending Pingback %s -> %s", entry, target)
-        server = xmlrpc.client.ServerProxy(self.endpoint)
-        try:
-            result = server.pingback.ping(entry, target)
-            LOGGER.debug("%s: %s", self.endpoint, result)
-            return True
-        except Exception as error:  # pylint:disable=broad-except
-            LOGGER.warning('%s: %s', self.endpoint, error)
+    @staticmethod
+    def _make_param(text):
+        param = etree.Element('param')
+        value = etree.Element('value')
+        leaf = etree.Element('string')
+        leaf.text = text
+        value.append(leaf)
+        param.append(value)
+        return param
 
-        return False
+    async def send(self, config, entry, target):
+        LOGGER.info("Sending Pingback %s -> %s", entry, target)
+
+        root = etree.Element('methodCall')
+        method = etree.Element('methodName')
+        method.text = 'pingback.ping'
+        root.append(method)
+
+        params = etree.Element('params')
+        root.append(params)
+
+        params.append(self._make_param(entry))
+        params.append(self._make_param(target))
+
+        body = etree.tostring(root,
+                              xml_declaration=True)
+
+        async with config.session.post(self.endpoint,
+                                       data=body) as request:
+            success = 200 <= request.status < 300
+            if not success:
+                LOGGER.warning("%s -> %s: Got status code %d",
+                               entry, target, request.status)
+            # someday I'll parse out the response but IDGAF
+
+        return success
 
 
 class Target:
     """ A target of a webmention """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, request):
-        self.url = request.url  # the canonical, final URL
-        self.status_code = request.status_code
+    def __init__(self, request, text):
+        self.url = str(request.url)  # the canonical, final URL
+        self.status = request.status
         self.headers = request.headers
         self.schema = SCHEMA_VERSION
 
-        if 200 <= request.status_code < 300:
-            self.endpoint = self._get_endpoint(request)
+        if 200 <= request.status < 300:
+            self.endpoint = self._get_endpoint(request, text)
         else:
             self.endpoint = None
 
-    @staticmethod
-    def _get_endpoint(request):
+    def _get_endpoint(self, request, text):
         def join(url):
-            return urllib.parse.urljoin(request.url, url)
+            return urllib.parse.urljoin(self.url, url)
 
         for rel, link in request.links.items():
             if link.get('url') and 'webmention' in rel.split():
@@ -100,42 +127,39 @@ class Target:
         if 'html' not in ctype and 'xml' not in ctype:
             return None
 
-        soup = BeautifulSoup(request.text, 'html.parser')
+        soup = BeautifulSoup(text, 'html.parser')
         for link in soup.find_all(('link', 'a'), rel='webmention'):
             if link.attrs.get('href'):
                 return WebmentionEndpoint(
-                    urllib.parse.urljoin(request.url,
+                    urllib.parse.urljoin(self.url,
                                          link.attrs['href']))
         for link in soup.find_all(('link', 'a'), rel='pingback'):
             if link.attrs.get('href'):
                 return PingbackEndpoint(
-                    urllib.parse.urljoin(request.url,
+                    urllib.parse.urljoin(self.url,
                                          link.attrs['href']))
 
         return None
 
-    def send(self, config, entry):
+    async def send(self, config, entry):
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
             LOGGER.debug("%s -> %s", entry.url, self.url)
-            self.endpoint.send(config, entry.url, self.url)
+            await self.endpoint.send(config, entry.url, self.url)
 
 
-@functools.lru_cache()
-def get_target(config, url):
+async def get_target(config, url):
     """ Given a URL, get the webmention endpoint """
 
     previous = config.cache.get(
         'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
-    try:
-        request = config.session.get(
-            url, headers=caching.make_headers(previous), timeout=config.timeout)
-        current = Target(request)
-    except (TimeoutError, requests.exceptions.RequestException):
-        return None
+    async with config.session.get(url,
+                                  headers=caching.make_headers(previous)) as request:
+        text = await request.text()
+        current = Target(request, text)
 
-    if current.status_code == 304:
+    if current.status == 304:
         # cache hit
         return previous
 
