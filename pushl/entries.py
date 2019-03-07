@@ -126,7 +126,7 @@ async def get_entry(config, url):
         return None, previous, False
 
     # cache hit
-    if request.cached == 304:
+    if request.cached:
         return previous, previous, False
 
     current = Entry(request)
