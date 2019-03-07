@@ -47,10 +47,10 @@ class WebmentionEndpoint(Endpoint):
                 result = request.status
 
                 if 'retry-after' in request.headers:
-                    LOGGER.info("  %s retry-after %s",
+                    retries -= 1
+                    LOGGER.info("%s: retrying after %s seconds",
                                 self.endpoint, request.headers['retry-after'])
                     asyncio.sleep(float(request.headers['retry-after']))
-                    retries -= 1
                 else:
                     break
 
@@ -106,7 +106,7 @@ class Target:
     def __init__(self, request, text):
         self.url = str(request.url)  # the canonical, final URL
         self.status = request.status
-        self.headers = request.headers
+        self.caching = caching.make_headers(request.headers)
         self.schema = SCHEMA_VERSION
 
         if 200 <= request.status < 300:
@@ -116,7 +116,7 @@ class Target:
 
     def _get_endpoint(self, request, text):
         def join(url):
-            return urllib.parse.urljoin(self.url, url)
+            return urllib.parse.urljoin(self.url, str(url))
 
         for rel, link in request.links.items():
             if link.get('url') and 'webmention' in rel.split():
@@ -148,7 +148,11 @@ class Target:
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
             LOGGER.debug("%s -> %s", entry.url, self.url)
-            await self.endpoint.send(config, entry.url, self.url)
+            try:
+                await self.endpoint.send(config, entry.url, self.url)
+            except Exception as e:  # pylint:disable=broad-except
+                LOGGER.warning("Ping %s: got %s: %s",
+                               self.url, e.__class__.__name__, e)
 
 
 async def get_target(config, url):
@@ -157,10 +161,16 @@ async def get_target(config, url):
     previous = config.cache.get(
         'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
-    async with config.session.get(url,
-                                  headers=caching.make_headers(previous)) as request:
-        text = await request.text()
-        current = Target(request, text)
+    headers = previous.caching if previous else None
+
+    try:
+        async with config.session.get(url, headers=headers) as request:
+            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            current = Target(request, text)
+    except Exception as e:
+        LOGGER.warning("Target %s: got %s: %s",
+                       url, e.__class__.__name__, e)
+        return previous
 
     if current.status == 304:
         # cache hit

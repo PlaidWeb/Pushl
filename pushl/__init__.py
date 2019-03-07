@@ -49,6 +49,9 @@ class Pushl:
 
         pending = []
 
+        if not feed:
+            return
+
         try:
             for link in feed.links:
                 #  RFC5005 archive links
@@ -73,7 +76,8 @@ class Pushl:
         for entry in entries:
             pending.append(self.process_entry(entry))
 
-        await asyncio.wait(pending)
+        if pending:
+            await asyncio.wait(pending)
 
     async def process_entry(self, url):
         """ process an entry """
@@ -99,10 +103,11 @@ class Pushl:
                 pending.append(self.send_webmention(entry, link))
 
             if self.args.recurse:
-                for feed in entries.get_feeds(entry):
+                for feed in entry.feeds:
                     pending.append(self.process_feed(feed))
 
-        await asyncio.wait(pending)
+        if pending:
+            await asyncio.wait(pending)
 
     async def send_webmention(self, entry, url):
         """ send a webmention from an entry to a URL """

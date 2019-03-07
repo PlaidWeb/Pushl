@@ -21,8 +21,8 @@ class Feed:
         md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
 
-        self.url = request.url
-        self.headers = request.headers
+        self.url = str(request.url)
+        self.caching = caching.make_headers(request.headers)
         self.feed = feedparser.parse(text)
         self.status = request.status
 
@@ -74,13 +74,18 @@ class Feed:
                 rels['self'] != rels['current'])
 
     async def update_websub(self, config, hub):
-        async with config.session.post(hub, {'hub.mode': 'publish', 'hub.url': self.url}) as request:
-            if 200 <= request.status < 300:
-                LOGGER.info("%s: WebSub notification sent to %s",
-                            self.url, hub)
-            else:
-                LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
-                               request.status, await request.text())
+        try:
+            LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
+            async with config.session.post(hub, {'hub.mode': 'publish', 'hub.url': self.url}) as request:
+                if 200 <= request.status < 300:
+                    LOGGER.info("%s: WebSub notification sent to %s",
+                                self.url, hub)
+                else:
+                    LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
+                                   request.status, await request.text())
+        except Exception as e:  # pylint:disable=broad-except
+            LOGGER.warning("WebSub %s: got %s: %s",
+                           hub, e.__class__.__name__, e)
 
 
 async def get_feed(config, url):
@@ -97,18 +102,23 @@ async def get_feed(config, url):
     previous = config.cache.get(
         'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
-    headers = caching.make_headers(previous)
+    headers = previous.caching if previous else None
 
-    async with config.session.get(url, headers=headers) as request:
-        if not 200 <= request.status < 300:
-            return None, previous, False
+    try:
+        async with config.session.get(url, headers=headers) as request:
+            if not 200 <= request.status < 300:
+                return None, previous, False
 
-        if request.status == 304:
-            LOGGER.debug("%s: Reusing cached version", url)
-            return previous, previous, False
+            if request.status == 304:
+                LOGGER.debug("%s: Reusing cached version", url)
+                return previous, previous, False
 
-        text = await request.text()
-        current = Feed(request, text)
+            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            current = Feed(request, text)
+    except Exception as e:  # pylint:disable=broad-except
+        LOGGER.warning("Feed %s: Got %s: %s",
+                       url, e.__class__.__name__, e)
+        return None, previous, False
 
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)

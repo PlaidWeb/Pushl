@@ -81,9 +81,18 @@ async def _run(loop):
 
     connector = aiohttp.TCPConnector(limit=args.max_connections,
                                      limit_per_host=args.max_per_host)
+
+    # Time waiting for a connection pool entry to free up counts against total
+    # and connect, so instead we just set the new connection and the read
+    # timeout
+    timeout = aiohttp.ClientTimeout(
+        total=None,
+        connect=None,
+        sock_connect=args.timeout,
+        sock_read=args.timeout)
+
     async with aiohttp.ClientSession(loop=loop,
-                                     timeout=aiohttp.ClientTimeout(
-                                         total=args.timeout),
+                                     timeout=timeout,
                                      connector=connector) as session:
         worker = Pushl(session, args)
         pending = []
@@ -95,6 +104,8 @@ async def _run(loop):
             pending.append(worker.process_entry(url))
 
         await asyncio.wait(pending)
+
+    LOGGER.info("Completed all tasks")
 
 
 if __name__ == "__main__":

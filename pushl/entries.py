@@ -25,7 +25,7 @@ class Entry:
         self.url = str(request.url)  # the canonical, final URL
         self.original_url = url  # the original request URL
         self.status = request.status
-        self.headers = request.headers
+        self.caching = caching.make_headers(request.headers)
 
         if 200 <= self.status < 300:
             """ We have new content, so parse out the relevant stuff """
@@ -119,19 +119,20 @@ async def get_entry(config, url):
         'entry', url,
         schema_version=SCHEMA_VERSION) if config.cache else None
 
-    headers = caching.make_headers(previous)
+    headers = previous.caching if previous else None
 
-    async with config.session.get(url, headers=headers) as request:
-        if 200 <= request.status < 300:
-            text = await request.text()
-        else:
-            text = None
+    try:
+        async with config.session.get(url, headers=headers) as request:
+            # cache hit
+            if request.status == 304:
+                return previous, previous, False
 
-        current = Entry(url, request, text)
-
-    # Cache hit
-    if current.status == 304:
-        return previous, previous, False
+            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            current = Entry(url, request, text)
+    except Exception as e:  # pylint: disable=broad-except
+        LOGGER.warning("Entry %s: got %s: %s",
+                       url, e.__class__.__name__, e)
+        return None, previous, False
 
     # Content updated
     if 200 <= current.status < 300 or current.status == 410:
@@ -141,17 +142,3 @@ async def get_entry(config, url):
     return current, previous, (not previous
                                or previous.digest != current.digest
                                or previous.status != current.status)
-
-
-def get_feeds(entry):
-    """ Given an Entry object, return all of the discovered feeds """
-    soup = entry.soup
-    return [urllib.parse.urljoin(entry.url, link.attrs['href'])
-            for link in soup.find_all('link', rel='alternate')
-            if _is_feed(link)]
-
-
-def _is_feed(link):
-    return ('href' in link.attrs
-            and link.attrs.get('type') in ('application/rss+xml',
-                                           'application/atom+xml'))
