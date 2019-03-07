@@ -56,11 +56,11 @@ setup(
     packages=['pushl'],
 
     install_requires=[
-        'requests',
         'feedparser',
         'beautifulsoup4',
         'awesome-slugify',
-        'defusedxml'
+        'aiohttp',
+        'lxml'
     ],
 
     extras_require={

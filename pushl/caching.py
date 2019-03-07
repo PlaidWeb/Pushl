@@ -37,7 +37,9 @@ class Cache:
         with self.lock:
             try:
                 item = pickle.load(open(filename, "rb"))
-                if schema_version and schema_version != item.SCHEMA_VERSION:
+                if schema_version and schema_version != item.schema:
+                    LOGGER.debug("Wanted schema %d, got %d",
+                                 schema_version, item.schema)
                     return None
                 return item
             except:  # pylint:disable=bare-except
@@ -61,14 +63,13 @@ class Cache:
             return pickle.dump(obj, open(filename, 'wb'))
 
 
-def make_headers(previous):
+def make_headers(headers):
     """ Make the cache control headers based on a previous request's
     response headers
     """
-    headers = {}
-    if previous:
-        if 'etag' in previous.headers:
-            headers['if-none-match'] = previous.headers['etag']
-        if 'last-modified' in previous.headers:
-            headers['if-modified-since'] = previous.headers['last-modified']
-    return headers
+    out = {}
+    if 'etag' in headers:
+        out['if-none-match'] = headers['etag']
+    if 'last-modified' in headers:
+        out['if-modified-since'] = headers['last-modified']
+    return out

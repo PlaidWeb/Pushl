@@ -2,45 +2,111 @@
 
 import logging
 import urllib.parse
-import functools
 import hashlib
 
 from bs4 import BeautifulSoup
-import requests
+import aiohttp
 
 from . import caching
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Entry:
     """ Encapsulates a scanned entry """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, config, url, previous=None):
-        request = config.session.get(url, headers=caching.make_headers(previous),
-                                     timeout=config.args.timeout)
-
-        md5 = hashlib.md5(request.text.encode('utf-8'))
-
-        self.text = request.text
+    def __init__(self, url, request, text):
+        """ Build an Entry from a completed request; requires that the text already be retrieved """
+        md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
-        self.url = request.url  # the canonical, final URL
+
+        self.url = str(request.url)  # the canonical, final URL
         self.original_url = url  # the original request URL
-        self.status_code = request.status_code
-        self.headers = request.headers
+        self.status = request.status
+        self.caching = caching.make_headers(request.headers)
+
+        if 200 <= self.status < 300:
+            """ We have new content, so parse out the relevant stuff """
+            soup = BeautifulSoup(text, 'html.parser')
+            articles = self._get_articles(soup)
+
+            self._targets = []
+            for node in articles:
+                self._targets += [link.attrs
+                                  for link in node.find_all('a')
+                                  if 'href' in link.attrs]
+
+            self.feeds = [urllib.parse.urljoin(self.url, link.attrs['href'])
+                          for link in soup.find_all('link')
+                          if 'href' in link.attrs
+                          and 'type' in link.attrs
+                          and link.attrs['type'] in ('application/rss.xml',
+                                                     'application/atom+xml')]
+        else:
+            self._targets = []
+            self.feeds = []
+
         self.schema = SCHEMA_VERSION
 
-    @property
-    def soup(self):
-        """ Get the BeautifulSoup instance for this entry """
-        return BeautifulSoup(self.text, 'html.parser')
+    @staticmethod
+    def _get_articles(soup):
+        return (soup.find_all(class_="h-entry")
+                or soup.find_all("article")
+                or soup.find_all(class_="entry")
+                or [soup])
+
+    @staticmethod
+    def _check_rel(attrs, rel_whitelist, rel_blacklist):
+        """ Check a link's relations against the whitelist or blacklist.
+
+        First, this will reject based on blacklist.
+
+        Next, if there is a whitelist, there must be at least one rel that matches.
+        To explicitly allow links without a rel you can add None to the whitelist
+        (e.g. ['in-reply-to',None])
+        """
+
+        rels = attrs.get('rel', [None])
+
+        if rel_blacklist:
+            # Never return True for a link whose rel appears in the blacklist
+            for rel in rels:
+                if rel in rel_blacklist:
+                    return False
+
+        if rel_whitelist:
+            # If there is a whitelist for rels, only return true for a rel that
+            # appears in it
+            for rel in rels:
+                if rel in rel_whitelist:
+                    return True
+            # If there is a whitelist and we don't match, then reject
+            return False
+
+        return True
+
+    def _domain_differs(self, href):
+        """ Check that a link is not on the same domain as the source URL """
+        target = urllib.parse.urlparse(href).netloc.lower()
+        if not target:
+            return False
+
+        origin = urllib.parse.urlparse(self.url).netloc.lower()
+        return target != origin
+
+    def get_targets(self, config):
+        """ Given an Entry object, return all of the outgoing links. """
+
+        return {urllib.parse.urljoin(self.url, attrs['href'])
+                for attrs in self._targets
+                if self._check_rel(attrs, config.rel_whitelist, config.rel_blacklist)
+                and self._domain_differs(attrs['href'])}
 
 
-@functools.lru_cache()
-def get_entry(config, url):
-    """ Given an entry URL, return the entry document
+async def get_entry(config, url):
+    """ Given an entry URL, return the entry
 
     Arguments:
 
@@ -53,101 +119,26 @@ def get_entry(config, url):
         'entry', url,
         schema_version=SCHEMA_VERSION) if config.cache else None
 
-    try:
-        current = Entry(config, url, previous)
-    except requests.RequestException as error:
-        LOGGER.warning("%s: %s", url, error)
-        return None, None, False
+    headers = previous.caching if previous else None
 
-    # Cache hit
-    if current.status_code == 304:
-        return previous, previous, False
+    try:
+        async with config.session.get(url, headers=headers) as request:
+            # cache hit
+            if request.status == 304:
+                return previous, previous, False
+
+            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            current = Entry(url, request, text)
+    except Exception as e:  # pylint: disable=broad-except
+        LOGGER.warning("Entry %s: got %s: %s",
+                       url, e.__class__.__name__, e)
+        return None, previous, False
 
     # Content updated
-    if 200 <= current.status_code < 300 or current.status_code == 410:
+    if 200 <= current.status < 300 or current.status == 410:
         if config.cache:
             config.cache.set('entry', url, current)
 
     return current, previous, (not previous
                                or previous.digest != current.digest
-                               or previous.status_code != current.status_code)
-
-
-def _check_rel(link, rel_whitelist, rel_blacklist):
-    """ Check a link's relations against the whitelist or blacklist.
-
-    First, this will reject based on blacklist.
-
-    Next, if there is a whitelist, there must be at least one rel that matches.
-    To explicitly allow links without a rel you can add None to the whitelist
-    (e.g. ['in-reply-to',None])
-    """
-
-    if 'href' not in link.attrs:
-        # degenerate link
-        return False
-
-    rels = link.attrs.get('rel', [None])
-
-    if rel_blacklist:
-        # Never return True for a link whose rel appears in the blacklist
-        for rel in rels:
-            if rel in rel_blacklist:
-                return False
-
-    if rel_whitelist:
-        # If there is a whitelist for rels, only return true for a rel that
-        # appears in it
-        for rel in rels:
-            if rel in rel_whitelist:
-                return True
-        # If there is a whitelist and we don't match, then reject
-        return False
-
-    return True
-
-
-def _domains_differ(link, source):
-    """ Check that a link is not on the same domain as the source URL """
-    target = urllib.parse.urlparse(link.attrs.get('href')).netloc.lower()
-    if not target:
-        return False
-
-    origin = urllib.parse.urlparse(source).netloc.lower()
-    return target != origin
-
-
-def get_top_nodes(entry):
-    """ Given an Entry object, return all of the top-level entry nodes """
-    soup = entry.soup
-    return (soup.find_all(class_="h-entry")
-            or soup.find_all("article")
-            or soup.find_all(class_="entry")
-            or [soup])
-
-
-def get_targets(config, entry):
-    """ Given an Entry object, return all of the outgoing links. """
-
-    targets = set()
-    for top_node in get_top_nodes(entry):
-        targets |= {urllib.parse.urljoin(entry.url, link.attrs['href'])
-                    for link in top_node.find_all('a')
-                    if _check_rel(link, config.rel_whitelist, config.rel_blacklist)
-                    and _domains_differ(link, entry.url)}
-
-    return targets
-
-
-def get_feeds(entry):
-    """ Given an Entry object, return all of the discovered feeds """
-    soup = entry.soup
-    return [urllib.parse.urljoin(entry.url, link.attrs['href'])
-            for link in soup.find_all('link', rel='alternate')
-            if _is_feed(link)]
-
-
-def _is_feed(link):
-    return ('href' in link.attrs
-            and link.attrs.get('type') in ('application/rss+xml',
-                                           'application/atom+xml'))
+                               or previous.status != current.status)

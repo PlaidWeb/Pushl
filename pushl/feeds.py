@@ -3,14 +3,93 @@
 import logging
 import collections
 import itertools
+import hashlib
 
 import feedparser
 
+from . import caching
+
 LOGGER = logging.getLogger(__name__)
+SCHEMA_VERSION = 1
 
 
-def get_feed(config, url):
-    """ Get the current parsed feed
+class Feed:
+    """ Encapsulates stuff on feeds """
+
+    def __init__(self, request, text):
+        """ Given a request object and retrieved text, parse out the feed """
+        md5 = hashlib.md5(text.encode('utf-8'))
+        self.digest = md5.digest()
+
+        self.url = str(request.url)
+        self.caching = caching.make_headers(request.headers)
+        self.feed = feedparser.parse(text)
+        self.status = request.status
+
+        self.schema = SCHEMA_VERSION
+
+    @property
+    def archive_namespace(self):
+        """ Returns the known namespace of the RFC5005 extension, if any """
+        try:
+            for ns_prefix, url in self.feed.namespaces.items():
+                if url == 'http://purl.org/syndication/history/1.0':
+                    return ns_prefix
+        except AttributeError:
+            pass
+        return None
+
+    @property
+    def entry_links(self):
+        """ Given a parsed feed, return the links to its entries, including ones
+        which disappeared (as a quick-and-dirty way to support deletions)
+        """
+        return {entry['link'] for entry in self.feed.entries if entry and entry.get('link')}
+
+    @property
+    def links(self):
+        """ Given a parsed feed, return the links based on their `rel` attribute """
+        rels = collections.defaultdict(list)
+        for link in self.feed.feed.links:
+            rels[link.rel].append(link.href)
+        return rels
+
+    @property
+    def is_archive(self):
+        """ Given a parsed feed, returns True if this is an archive feed """
+
+        ns_prefix = self.archive_namespace
+        if ns_prefix:
+            if ns_prefix + '_archive' in feed.feed:
+                # This is declared to be an archive view
+                return True
+            if ns_prefix + '_current' in feed.feed:
+                # This is declared to be the current view
+                return False
+
+        # Either we don't have the namespace, or the view wasn't declared.
+        rels = self.links
+        return ('current' in rels and
+                'self' in rels and
+                rels['self'] != rels['current'])
+
+    async def update_websub(self, config, hub):
+        try:
+            LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
+            async with config.session.post(hub, {'hub.mode': 'publish', 'hub.url': self.url}) as request:
+                if 200 <= request.status < 300:
+                    LOGGER.info("%s: WebSub notification sent to %s",
+                                self.url, hub)
+                else:
+                    LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
+                                   request.status, await request.text())
+        except Exception as e:  # pylint:disable=broad-except
+            LOGGER.warning("WebSub %s: got %s: %s",
+                           hub, e.__class__.__name__, e)
+
+
+async def get_feed(config, url):
+    """ Get a feed
 
     Arguments:
 
@@ -20,94 +99,32 @@ def get_feed(config, url):
     retval -- a tuple of feed,previous_version,changed
     """
 
-    cached = config.cache.get('feed', url) if config.cache else None
+    previous = config.cache.get(
+        'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
-    current = feedparser.parse(
-        url,
-        etag=cached.get('etag') if cached else None,
-        modified=cached.get('modified') if cached else None)
+    headers = previous.caching if previous else None
 
-    if current.bozo:
-        LOGGER.error("%s: Got error %s", url, current.bozo_exception)
-        return current, cached, False
+    try:
+        async with config.session.get(url, headers=headers) as request:
+            if not 200 <= request.status < 300:
+                return None, previous, False
 
-    if current.status == 304:
-        LOGGER.debug("%s: Reusing cached version", url)
-        return cached, cached, False
+            if request.status == 304:
+                LOGGER.debug("%s: Reusing cached version", url)
+                return previous, previous, False
+
+            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            current = Feed(request, text)
+    except Exception as e:  # pylint:disable=broad-except
+        LOGGER.warning("Feed %s: Got %s: %s",
+                       url, e.__class__.__name__, e)
+        return None, previous, False
 
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
         config.cache.set('feed', url, current)
 
     LOGGER.debug("%s: Returning new content", url)
-    return current, cached, True
-
-
-def get_archive_namespace(feed):
-    """ Returns the known namespace of the RFC5005 extension, if any """
-    try:
-        for ns_prefix, url in feed.namespaces.items():
-            if url == 'http://purl.org/syndication/history/1.0':
-                return ns_prefix
-    except AttributeError:
-        pass
-    return None
-
-
-def get_entry_links(feed, previous=None):
-    """ Given a parsed feed, return the links to its entries, including ones
-    which disappeared (as a quick-and-dirty way to support deletions)
-    """
-    entries = feed.entries
-    if previous:
-        entries = itertools.chain(entries, previous.entries)
-    return {entry['link'] for entry in entries if entry and entry.get('link')}
-
-
-def get_links(feed):
-    """ Given a parsed feed, return the links based on their `rel` attribute """
-    rels = collections.defaultdict(list)
-    for link in feed.feed.links:
-        rels[link.rel].append(link.href)
-    return rels
-
-
-def is_archive(feed):
-    """ Given a parsed feed, returns True if this is an archive feed """
-
-    ns_prefix = get_archive_namespace(feed)
-    if ns_prefix:
-        if ns_prefix + '_archive' in feed.feed:
-            # This is declared to be an archive view
-            return True
-        if ns_prefix + '_current' in feed.feed:
-            # This is declared to be the current view
-            return False
-
-    # Either we don't have the namespace, or the view wasn't declared.
-    rels = get_links(feed)
-    return ('current' in rels and
-            'self' in rels and
-            rels['self'] != rels['current'])
-
-
-def update_websub(config, url, hub):
-    """ Given a parsed feed, send a WebSub update
-
-    Arguments:
-
-    url -- the feed URL
-    hub -- the hub URL
-    """
-
-    LOGGER.debug("Sending update notification for %s to %s", url, hub)
-    try:
-        request = config.session.post(hub, {'hub.mode': 'publish', 'hub.url': url},
-                                      timeout=config.timeout)
-        if 200 <= request.status_code < 300:
-            LOGGER.info("%s: WebSub notification sent to %s", url, hub)
-        else:
-            LOGGER.warning("%s: Hub %s returned status code %s: %s", url, hub,
-                           request.status_code, request.text)
-    except TimeoutError:
-        LOGGER.warning("%s: WebSub update timed out with hub %s", url, hub)
+    return current, previous, (not previous
+                               or current.digest != previous.digest
+                               or current.status != previous.status)
