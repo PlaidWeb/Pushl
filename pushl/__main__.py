@@ -35,7 +35,7 @@ def parse_args(*args):
                         dest='entries')
     parser.add_argument('--timeout', '-t', type=int, dest='timeout',
                         help='Connection timeout, in seconds',
-                        default=15)
+                        default=120)
     parser.add_argument('--max-connections', type=int, dest='max_connections',
                         help='Maximum number of connections to have open at once',
                         default=100)
