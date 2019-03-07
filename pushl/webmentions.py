@@ -2,22 +2,16 @@
 
 import urllib.parse
 import logging
-import functools
-import xmlrpc.client
 from abc import ABC, abstractmethod
 import asyncio
 from lxml import etree
 
-import aiohttp
-import defusedxml.xmlrpc
 from bs4 import BeautifulSoup
 
 from . import caching
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 2
-
-defusedxml.xmlrpc.monkey_patch()
 
 
 class Endpoint(ABC):
@@ -150,9 +144,9 @@ class Target:
             LOGGER.debug("%s -> %s", entry.url, self.url)
             try:
                 await self.endpoint.send(config, entry.url, self.url)
-            except Exception as e:  # pylint:disable=broad-except
+            except Exception as err:  # pylint:disable=broad-except
                 LOGGER.warning("Ping %s: got %s: %s",
-                               self.url, e.__class__.__name__, e)
+                               self.url, err.__class__.__name__, err)
 
 
 async def get_target(config, url):
@@ -167,9 +161,9 @@ async def get_target(config, url):
         async with config.session.get(url, headers=headers) as request:
             text = (await request.read()).decode(request.get_encoding(), 'ignore')
             current = Target(request, text)
-    except Exception as e:
+    except Exception as err:  # pylint:disable=broad-except
         LOGGER.warning("Target %s: got %s: %s",
-                       url, e.__class__.__name__, e)
+                       url, err.__class__.__name__, err)
         return previous
 
     if current.status == 304:

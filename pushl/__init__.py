@@ -1,11 +1,7 @@
 """ Functionality to add push-ish notifications to feed-based sites """
 
-import concurrent.futures
 import queue
-import threading
 import logging
-
-import aiohttp
 import asyncio
 
 from . import feeds, caching, entries, webmentions
@@ -70,10 +66,10 @@ class Pushl:
             LOGGER.debug("Feed %s has no links", url)
 
         # Schedule the entries
-        entries = set(feed.entry_links)
+        items = set(feed.entry_links)
         if previous:
-            entries |= set(previous.entry_links)
-        for entry in entries:
+            items |= set(previous.entry_links)
+        for entry in items:
             pending.append(self.process_entry(entry))
 
         if pending:

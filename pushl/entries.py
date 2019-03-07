@@ -5,7 +5,6 @@ import urllib.parse
 import hashlib
 
 from bs4 import BeautifulSoup
-import aiohttp
 
 from . import caching
 
@@ -17,18 +16,17 @@ class Entry:
     """ Encapsulates a scanned entry """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, url, request, text):
+    def __init__(self, request, text):
         """ Build an Entry from a completed request; requires that the text already be retrieved """
         md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
 
         self.url = str(request.url)  # the canonical, final URL
-        self.original_url = url  # the original request URL
         self.status = request.status
         self.caching = caching.make_headers(request.headers)
 
         if 200 <= self.status < 300:
-            """ We have new content, so parse out the relevant stuff """
+            # We have new content, so parse out the relevant stuff
             soup = BeautifulSoup(text, 'html.parser')
             articles = self._get_articles(soup)
 
@@ -128,10 +126,10 @@ async def get_entry(config, url):
                 return previous, previous, False
 
             text = (await request.read()).decode(request.get_encoding(), 'ignore')
-            current = Entry(url, request, text)
-    except Exception as e:  # pylint: disable=broad-except
+            current = Entry(request, text)
+    except Exception as err:  # pylint: disable=broad-except
         LOGGER.warning("Entry %s: got %s: %s",
-                       url, e.__class__.__name__, e)
+                       url, err.__class__.__name__, err)
         return None, previous, False
 
     # Content updated
