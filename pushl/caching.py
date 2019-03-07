@@ -5,6 +5,7 @@ import logging
 import hashlib
 import os
 import threading
+import sys
 
 from slugify import slugify
 
@@ -38,12 +39,16 @@ class Cache:
             try:
                 item = pickle.load(open(filename, "rb"))
                 if schema_version and schema_version != item.schema:
-                    LOGGER.debug("Wanted schema %d, got %d",
-                                 schema_version, item.schema)
+                    LOGGER.info("Cache get %s %s: Wanted schema %d, got %d",
+                                prefix, url,
+                                schema_version, item.schema)
                     return None
                 return item
-            except:  # pylint:disable=bare-except
+            except FileNotFoundError:
                 pass
+            except:  # pylint:disable=bare-except
+                _, msg, _ = sys.exc_info()
+                LOGGER.info("Cache get %s %s failed: %s", prefix, url, msg)
 
         return None
 
