@@ -4,6 +4,8 @@ import re
 import logging
 import sys
 
+import aiohttp
+
 LOGGER = logging.getLogger('utils')
 
 
@@ -37,7 +39,10 @@ class RequestResult:
         self.headers = request.headers
         self.status = request.status
         self.links = request.links
-        self.text = data.decode(guess_encoding(request), 'ignore')
+        if data:
+            self.text = data.decode(guess_encoding(request), 'ignore')
+        else:
+            self.text = ''
 
     @property
     def success(self):
@@ -56,17 +61,24 @@ class RequestResult:
 
 async def _retry_do(session, func, url):
     retries = 5
+    errors = set()
     while retries > 0:
         retries -= 1
         try:
             async with func(url) as request:
+                if request.status == 304:
+                    return RequestResult(request, None)
                 return RequestResult(request, await request.read())
+        except aiohttp.client_exceptions.ClientResponseError as err:
+            LOGGER.warning("%s: got client response error: %s", url, str(err))
+            return None
         except:
             exc_type, exc_value, _ = sys.exc_info()
-            LOGGER.info("%s: got error %s %s", url,
-                        exc_type, exc_value)
+            LOGGER.debug("%s: got error %s %s (retries=%d)", url,
+                         exc_type, exc_value, retries)
+            errors.add(exc_value)
 
-    LOGGER.warning("%s: Exceeded maximum retries")
+    LOGGER.warning("%s: Exceeded maximum retries; errors: %s", url, errors)
     return None
 
 
