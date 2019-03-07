@@ -9,7 +9,7 @@ import feedparser
 from . import caching
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Feed:
@@ -24,6 +24,7 @@ class Feed:
         self.caching = caching.make_headers(request.headers)
         self.feed = feedparser.parse(text)
         self.status = request.status
+        self.links = self.feed.feed.links
 
         self.schema = SCHEMA_VERSION
 
@@ -46,14 +47,6 @@ class Feed:
         return {entry['link'] for entry in self.feed.entries if entry and entry.get('link')}
 
     @property
-    def links(self):
-        """ Given a parsed feed, return the links based on their `rel` attribute """
-        rels = collections.defaultdict(list)
-        for link in self.feed.feed.links:
-            rels[link.rel].append(link.href)
-        return rels
-
-    @property
     def is_archive(self):
         """ Given a parsed feed, returns True if this is an archive feed """
 
@@ -67,6 +60,9 @@ class Feed:
                 return False
 
         # Either we don't have the namespace, or the view wasn't declared.
+        rels = collections.defaultdict(list)
+        for link in self.feed.feed.links:
+            rels[link.rel].append(link.href)
         rels = self.links
         return ('current' in rels and
                 'self' in rels and
@@ -77,7 +73,7 @@ class Feed:
         try:
             LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
             async with config.session.post(
-                    hub, {
+                    hub, data={
                         'hub.mode': 'publish',
                         'hub.url': self.url
                     }) as request:

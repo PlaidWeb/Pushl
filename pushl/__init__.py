@@ -42,6 +42,8 @@ class Pushl:
 
         LOGGER.debug("process feed %s", url)
         feed, previous, updated = await feeds.get_feed(self, url)
+        if updated:
+            LOGGER.info("Feed %s has been updated", url)
 
         pending = []
 
