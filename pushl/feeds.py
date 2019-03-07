@@ -2,7 +2,6 @@
 
 import logging
 import collections
-import itertools
 import hashlib
 
 import feedparser
@@ -60,10 +59,10 @@ class Feed:
 
         ns_prefix = self.archive_namespace
         if ns_prefix:
-            if ns_prefix + '_archive' in feed.feed:
+            if ns_prefix + '_archive' in self.feed:
                 # This is declared to be an archive view
                 return True
-            if ns_prefix + '_current' in feed.feed:
+            if ns_prefix + '_current' in self.feed:
                 # This is declared to be the current view
                 return False
 
@@ -74,18 +73,23 @@ class Feed:
                 rels['self'] != rels['current'])
 
     async def update_websub(self, config, hub):
+        """ Update WebSub hub to know about this feed """
         try:
             LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
-            async with config.session.post(hub, {'hub.mode': 'publish', 'hub.url': self.url}) as request:
+            async with config.session.post(
+                    hub, {
+                        'hub.mode': 'publish',
+                        'hub.url': self.url
+                    }) as request:
                 if 200 <= request.status < 300:
                     LOGGER.info("%s: WebSub notification sent to %s",
                                 self.url, hub)
                 else:
                     LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
                                    request.status, await request.text())
-        except Exception as e:  # pylint:disable=broad-except
+        except Exception as err:  # pylint:disable=broad-except
             LOGGER.warning("WebSub %s: got %s: %s",
-                           hub, e.__class__.__name__, e)
+                           hub, err.__class__.__name__, err)
 
 
 async def get_feed(config, url):
@@ -115,9 +119,9 @@ async def get_feed(config, url):
 
             text = (await request.read()).decode(request.get_encoding(), 'ignore')
             current = Feed(request, text)
-    except Exception as e:  # pylint:disable=broad-except
+    except Exception as err:  # pylint:disable=broad-except
         LOGGER.warning("Feed %s: Got %s: %s",
-                       url, e.__class__.__name__, e)
+                       url, err.__class__.__name__, err)
         return None, previous, False
 
     if config.cache:

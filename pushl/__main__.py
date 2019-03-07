@@ -74,6 +74,7 @@ def main():
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_run(loop))
 
+
 async def _run(loop):
     args = parse_args()
     logging.basicConfig(level=LOG_LEVELS[min(
@@ -103,7 +104,8 @@ async def _run(loop):
         for url in args.entries or []:
             pending.append(worker.process_entry(url))
 
-        await asyncio.wait(pending)
+        if pending:
+            await asyncio.wait(pending)
 
     LOGGER.info("Completed all tasks")
 
