@@ -55,7 +55,7 @@ class Entry:
         return (soup.find_all(class_="h-entry")
                 or soup.find_all("article")
                 or soup.find_all(class_="entry")
-                or soup)
+                or [soup])
 
     @staticmethod
     def _check_rel(attrs, rel_whitelist, rel_blacklist):
