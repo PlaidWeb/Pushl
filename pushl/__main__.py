@@ -48,7 +48,8 @@ def parse_args(*args):
                         + " for sending webmentions")
     parser.add_argument('--rel-blacklist', '-b', dest='rel_blacklist', type=str,
                         help="Comma-separated list of link RELs to blacklist"
-                        + " from sending webmentions")
+                        + " from sending webmentions",
+                        default="nofollow")
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
@@ -81,7 +82,8 @@ async def _run(loop):
         args.verbosity, len(LOG_LEVELS) - 1)])
 
     connector = aiohttp.TCPConnector(limit=args.max_connections,
-                                     limit_per_host=args.max_per_host)
+                                     limit_per_host=args.max_per_host,
+                                     )
 
     # Time waiting for a connection pool entry to free up counts against total
     # and connect, so instead we just set the new connection and the read
