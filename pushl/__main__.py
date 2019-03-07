@@ -38,10 +38,10 @@ def parse_args(*args):
                         default=120)
     parser.add_argument('--max-connections', type=int, dest='max_connections',
                         help='Maximum number of connections to have open at once',
-                        default=100)
+                        default=20)
     parser.add_argument('--max-per-host', type=int, dest='max_per_host',
                         help='Maximum number of connections per host',
-                        default=10)
+                        default=5)
 
     parser.add_argument('--rel-whitelist', '-w', dest='rel_whitelist', type=str,
                         help="Comma-separated list of link RELs to whitelist"
@@ -81,9 +81,10 @@ async def _run(loop):
     logging.basicConfig(level=LOG_LEVELS[min(
         args.verbosity, len(LOG_LEVELS) - 1)])
 
-    connector = aiohttp.TCPConnector(limit=args.max_connections,
-                                     limit_per_host=args.max_per_host,
-                                     )
+    connector = aiohttp.TCPConnector(
+        limit=args.max_connections,
+        limit_per_host=args.max_per_host
+    )
 
     # Time waiting for a connection pool entry to free up counts against total
     # and connect, so instead we just set the new connection and the read
