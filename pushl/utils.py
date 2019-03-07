@@ -2,6 +2,7 @@
 
 import re
 import logging
+import sys
 
 LOGGER = logging.getLogger('utils')
 
@@ -9,9 +10,14 @@ LOGGER = logging.getLogger('utils')
 def guess_encoding(request):
     """ Try to guess the encoding of a request without going through the slow chardet process"""
     ctype = request.headers.get('content-type')
+    if not ctype:
+        # we don't have a content-type, somehow, so...
+        LOGGER.warning("%s: no content-type; headers are %s",
+                       request.url, request.headers)
+        return 'utf-8'
 
     # explicit declaration
-    match = re.search(r'charset=([^ ;]*)(;| |$)', str(ctype))
+    match = re.search(r'charset=([^ ;]*)(;| |$)', ctype)
     if match:
         return match[1]
 
@@ -55,11 +61,12 @@ async def _retry_do(session, func, url):
         try:
             async with func(url) as request:
                 return RequestResult(request, await request.read())
-        except Exception as err:
-            logging.INFO("%s: got error %s %s", url,
-                         err.__class__.__name__, err)
+        except:
+            exc_type, exc_value, _ = sys.exc_info()
+            LOGGER.info("%s: got error %s %s", url,
+                        exc_type, exc_value)
 
-    logging.WARNING("%s: Exceeded maximum retries")
+    LOGGER.warning("%s: Exceeded maximum retries")
     return None
 
 
