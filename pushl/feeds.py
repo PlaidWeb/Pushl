@@ -6,7 +6,7 @@ import hashlib
 
 import feedparser
 
-from . import caching
+from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 2
@@ -113,7 +113,7 @@ async def get_feed(config, url):
                 LOGGER.debug("%s: Reusing cached version", url)
                 return previous, previous, False
 
-            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            text = (await request.read()).decode(utils.guess_encoding(request), 'ignore')
             current = Feed(request, text)
     except Exception as err:  # pylint:disable=broad-except
         LOGGER.warning("Feed %s: Got %s: %s",

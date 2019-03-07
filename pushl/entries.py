@@ -6,7 +6,7 @@ import hashlib
 
 from bs4 import BeautifulSoup
 
-from . import caching
+from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 2
@@ -125,7 +125,7 @@ async def get_entry(config, url):
             if request.status == 304:
                 return previous, previous, False
 
-            text = (await request.read()).decode(request.get_encoding(), 'ignore')
+            text = (await request.read()).decode(utils.guess_encoding(request), 'ignore')
             current = Entry(request, text)
     except Exception as err:  # pylint: disable=broad-except
         LOGGER.warning("Entry %s: got %s: %s",
