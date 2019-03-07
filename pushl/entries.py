@@ -16,8 +16,10 @@ class Entry:
     """ Encapsulates a scanned entry """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, request, text):
-        """ Build an Entry from a completed request; requires that the text already be retrieved """
+    def __init__(self, request):
+        """ Build an Entry from a completed request """
+        text = request.text
+
         md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
 
@@ -119,23 +121,19 @@ async def get_entry(config, url):
 
     headers = previous.caching if previous else None
 
-    try:
-        async with config.session.get(url, headers=headers) as request:
-            # cache hit
-            if request.status == 304:
-                return previous, previous, False
-
-            text = (await request.read()).decode(utils.guess_encoding(request), 'ignore')
-            current = Entry(request, text)
-    except Exception as err:  # pylint: disable=broad-except
-        LOGGER.warning("Entry %s: got %s: %s",
-                       url, err.__class__.__name__, err)
+    request = await utils.retry_get(config.session, url, headers=headers)
+    if not request or not request.success:
         return None, previous, False
 
+    # cache hit
+    if request.cached == 304:
+        return previous, previous, False
+
+    current = Entry(request)
+
     # Content updated
-    if 200 <= current.status < 300 or current.status == 410:
-        if config.cache:
-            config.cache.set('entry', url, current)
+    if config.cache:
+        config.cache.set('entry', url, current)
 
     return current, previous, (not previous
                                or previous.digest != current.digest

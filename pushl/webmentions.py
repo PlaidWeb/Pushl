@@ -34,21 +34,22 @@ class WebmentionEndpoint(Endpoint):
         LOGGER.info("Sending Webmention %s -> %s", entry, target)
         retries = 5
         while retries > 0:
-            async with config.session.post(self.endpoint,
-                                           data={'source': entry,
-                                                 'target': target
-                                                 }) as request:
-                result = request.status
+            request = await utils.retry_post(config.session,
+                                             self.endpoint,
+                                             data={'source': entry,
+                                                   'target': target
+                                                   })
 
-                if 'retry-after' in request.headers:
-                    retries -= 1
-                    LOGGER.info("%s: retrying after %s seconds",
-                                self.endpoint, request.headers['retry-after'])
-                    asyncio.sleep(float(request.headers['retry-after']))
-                else:
-                    break
+            if request and 'retry-after' in request.headers:
+                retries -= 1
+                LOGGER.info("%s: retrying after %s seconds",
+                            self.endpoint, request.headers['retry-after'])
+                asyncio.sleep(float(request.headers['retry-after']))
+            else:
+                return request and request.success
 
-        return 200 <= result < 300
+        LOGGER.info("%s: no more retries", self.endpoint)
+        return False
 
 
 class PingbackEndpoint(Endpoint):
@@ -82,29 +83,33 @@ class PingbackEndpoint(Endpoint):
         body = etree.tostring(root,
                               xml_declaration=True)
 
-        async with config.session.post(self.endpoint,
-                                       data=body) as request:
-            success = 200 <= request.status < 300
-            if not success:
-                LOGGER.warning("%s -> %s: Got status code %d",
-                               entry, target, request.status)
+        request = await utils.retry_post(config.session,
+                                         self.endpoint,
+                                         data=body)
+        if not request:
+            LOGGER.info("%s: failed to send ping")
+            return False
+
+        if not request.success:
+            LOGGER.info("%s -> %s: Got status code %d",
+                        entry, target, request.status)
             # someday I'll parse out the response but IDGAF
 
-        return success
+        return request.success
 
 
 class Target:
     """ A target of a webmention """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, request, text):
+    def __init__(self, request):
         self.url = str(request.url)  # the canonical, final URL
         self.status = request.status
         self.caching = caching.make_headers(request.headers)
         self.schema = SCHEMA_VERSION
 
-        if 200 <= request.status < 300:
-            self.endpoint = self._get_endpoint(request, text)
+        if request.success and not request.cached:
+            self.endpoint = self._get_endpoint(request, request.text)
         else:
             self.endpoint = None
 
@@ -130,6 +135,7 @@ class Target:
                 return WebmentionEndpoint(
                     urllib.parse.urljoin(self.url,
                                          link.attrs['href']))
+
         for link in soup.find_all(('link', 'a'), rel='pingback'):
             if link.attrs.get('href'):
                 return PingbackEndpoint(
@@ -157,18 +163,14 @@ async def get_target(config, url):
 
     headers = previous.caching if previous else None
 
-    try:
-        async with config.session.get(url, headers=headers) as request:
-            text = (await request.read()).decode(utils.guess_encoding(request), 'ignore')
-            current = Target(request, text)
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.warning("Target %s: got %s: %s",
-                       url, err.__class__.__name__, err)
+    request = await utils.retry_get(config.session, url, headers=headers)
+    if not request or not request.success:
         return previous
 
-    if current.status == 304:
-        # cache hit
+    if request.cached:
         return previous
+
+    current = Target(request)
 
     if config.cache:
         config.cache.set('target', url, current)

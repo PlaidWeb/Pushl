@@ -15,8 +15,9 @@ SCHEMA_VERSION = 2
 class Feed:
     """ Encapsulates stuff on feeds """
 
-    def __init__(self, request, text):
+    def __init__(self, request):
         """ Given a request object and retrieved text, parse out the feed """
+        text = request.text
         md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
 
@@ -104,21 +105,15 @@ async def get_feed(config, url):
 
     headers = previous.caching if previous else None
 
-    try:
-        async with config.session.get(url, headers=headers) as request:
-            if not 200 <= request.status < 300:
-                return None, previous, False
-
-            if request.status == 304:
-                LOGGER.debug("%s: Reusing cached version", url)
-                return previous, previous, False
-
-            text = (await request.read()).decode(utils.guess_encoding(request), 'ignore')
-            current = Feed(request, text)
-    except Exception as err:  # pylint:disable=broad-except
-        LOGGER.warning("Feed %s: Got %s: %s",
-                       url, err.__class__.__name__, err)
+    request = await utils.retry_get(config.session, url, headers=headers)
+    if not request or not request.success:
         return None, previous, False
+
+    if request.cached:
+        LOGGER.debug("%s: Reusing cached version", url)
+        return previous, previous, False
+
+    current = Feed(request)
 
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
