@@ -60,14 +60,14 @@ class Cache:
 
         filename = self._get_cache_file(prefix, url)
 
-        try:
-            os.makedirs(os.path.join(self.cache_dir, prefix))
-        except OSError:
-            pass
-
         async with self.semaphore:
+            try:
+                os.makedirs(os.path.join(self.cache_dir, prefix))
+            except OSError:
+                pass
+
             with open(filename, 'wb') as file:
-                return pickle.dump(obj, file)
+                pickle.dump(obj, file)
 
 
 def make_headers(headers):

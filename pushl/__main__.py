@@ -54,6 +54,13 @@ def parse_args(*args):
                         default="nofollow")
 
     feature = parser.add_mutually_exclusive_group(required=False)
+    feature.add_argument('--keepalive', dest='keepalive', action='store_true',
+                         help="Keep TCP connections alive")
+    feature.add_argument('--no-keepalive', dest='keepalive', action='store_false',
+                         help="Don't keep TCP connections alive")
+    feature.set_defaults(keepalive=False)
+
+    feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--archive', '-a', dest='archive', action='store_true',
                          help='Process archive links in the feed per RFC 5005')
     feature.add_argument('--no-archive', dest='archive', action='store_false',
@@ -86,7 +93,8 @@ async def _run(loop):
     connector = aiohttp.TCPConnector(
         limit=args.max_connections,
         limit_per_host=args.max_per_host,
-        enable_cleanup_closed=True
+        enable_cleanup_closed=True,
+        force_close=not args.keepalive
     )
 
     # Time waiting for a connection pool entry to free up counts against total
