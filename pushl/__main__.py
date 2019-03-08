@@ -3,8 +3,9 @@
 import argparse
 import logging
 import asyncio
-import aiohttp
 import resource
+
+import aiohttp
 
 from . import Pushl, __version__
 

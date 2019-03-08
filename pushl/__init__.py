@@ -18,7 +18,7 @@ class Pushl:
         """ Set up the process worker """
         # limit the number of open files at once
         max_files, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
-        self.semaphore = asyncio.Semaphore(max_files - 20)
+        self.semaphore = asyncio.Semaphore(max_files / 2)
 
         self.args = args
 
