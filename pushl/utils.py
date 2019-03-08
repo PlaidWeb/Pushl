@@ -77,17 +77,19 @@ async def _retry_do(func, url):
             exc_type, exc_value, _ = sys.exc_info()
             LOGGER.debug("%s: got error %s %s (retries=%d)", url,
                          exc_type, exc_value, retries)
-            errors.add(exc_value)
+            errors.add(str(exc_value))
 
     LOGGER.warning("%s: Exceeded maximum retries; errors: %s", url, errors)
     return None
 
 
-async def retry_get(session, url, *args, **kwargs):
+async def retry_get(config, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
-    return await _retry_do((lambda url: session.get(url, *args, **kwargs)), url)
+    async with config.semaphore:
+        return await _retry_do((lambda url: config.session.get(url, *args, **kwargs)), url)
 
 
-async def retry_post(session, url, *args, **kwargs):
+async def retry_post(config, url, *args, **kwargs):
     """ aiohttp wrapper for POST """
-    return await _retry_do((lambda url: session.post(url, *args, **kwargs)), url)
+    async with config.semaphore:
+        return await _retry_do((lambda url: config.session.post(url, *args, **kwargs)), url)

@@ -4,6 +4,7 @@ import argparse
 import logging
 import asyncio
 import aiohttp
+import resource
 
 from . import Pushl, __version__
 
@@ -36,9 +37,11 @@ def parse_args(*args):
     parser.add_argument('--timeout', '-t', type=int, dest='timeout',
                         help='Connection timeout, in seconds',
                         default=120)
+
+    max_files, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
     parser.add_argument('--max-connections', type=int, dest='max_connections',
                         help='Maximum number of connections to have open at once',
-                        default=20)
+                        default=int(max_files / 8))
     parser.add_argument('--max-per-host', type=int, dest='max_per_host',
                         help='Maximum number of connections per host',
                         default=5)

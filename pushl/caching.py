@@ -4,7 +4,6 @@ import pickle
 import logging
 import hashlib
 import os
-import threading
 import sys
 
 from slugify import slugify
@@ -15,9 +14,9 @@ LOGGER = logging.getLogger(__name__)
 class Cache:
     """ A very simple file-based object cache """
 
-    def __init__(self, cache_dir=None):
+    def __init__(self, cache_dir, semaphore):
         self.cache_dir = cache_dir
-        self.lock = threading.Lock()
+        self.semaphore = semaphore
 
     def _get_cache_file(self, prefix, url):
         if not self.cache_dir:
@@ -28,44 +27,46 @@ class Cache:
 
         return os.path.join(self.cache_dir, prefix, filename)
 
-    def get(self, prefix, url, schema_version=None):
+    async def get(self, prefix, url, schema_version=None):
         """ Get the cached object """
         if not self.cache_dir:
             return None
 
         filename = self._get_cache_file(prefix, url)
 
-        with self.lock:
-            try:
-                item = pickle.load(open(filename, "rb"))
-                if schema_version and schema_version != item.schema:
-                    LOGGER.info("Cache get %s %s: Wanted schema %d, got %d",
-                                prefix, url,
-                                schema_version, item.schema)
-                    return None
-                return item
-            except FileNotFoundError:
-                pass
-            except Exception:  # pylint:disable=broad-except
-                _, msg, _ = sys.exc_info()
-                LOGGER.info("Cache get %s %s failed: %s", prefix, url, msg)
+        try:
+            async with self.semaphore:
+                with open(filename, 'rb') as file:
+                    item = pickle.load(file)
+            if schema_version and schema_version != item.schema:
+                LOGGER.info("Cache get %s %s: Wanted schema %d, got %d",
+                            prefix, url,
+                            schema_version, item.schema)
+                return None
+            return item
+        except FileNotFoundError:
+            pass
+        except Exception:  # pylint:disable=broad-except
+            _, msg, _ = sys.exc_info()
+            LOGGER.info("Cache get %s %s failed: %s", prefix, url, msg)
 
         return None
 
-    def set(self, prefix, url, obj):
+    async def set(self, prefix, url, obj):
         """ Add an object into the cache """
         if not self.cache_dir:
             return None
 
         filename = self._get_cache_file(prefix, url)
 
-        with self.lock:
-            try:
-                os.makedirs(os.path.join(self.cache_dir, prefix))
-            except OSError:
-                pass
+        try:
+            os.makedirs(os.path.join(self.cache_dir, prefix))
+        except OSError:
+            pass
 
-            return pickle.dump(obj, open(filename, 'wb'))
+        async with self.semaphore:
+            with open(filename, 'wb') as file:
+                return pickle.dump(obj, file)
 
 
 def make_headers(headers):

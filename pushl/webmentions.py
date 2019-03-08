@@ -34,7 +34,7 @@ class WebmentionEndpoint(Endpoint):
         LOGGER.info("Sending Webmention %s -> %s", entry, target)
         retries = 5
         while retries > 0:
-            request = await utils.retry_post(config.session,
+            request = await utils.retry_post(config,
                                              self.endpoint,
                                              data={'source': entry,
                                                    'target': target
@@ -83,7 +83,7 @@ class PingbackEndpoint(Endpoint):
         body = etree.tostring(root,
                               xml_declaration=True)
 
-        request = await utils.retry_post(config.session,
+        request = await utils.retry_post(config,
                                          self.endpoint,
                                          data=body)
         if not request:
@@ -158,12 +158,12 @@ class Target:
 async def get_target(config, url):
     """ Given a URL, get the webmention endpoint """
 
-    previous = config.cache.get(
+    previous = await config.cache.get(
         'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
     headers = previous.caching if previous else None
 
-    request = await utils.retry_get(config.session, url, headers=headers)
+    request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
         return previous
 
@@ -173,6 +173,6 @@ async def get_target(config, url):
     current = Target(request)
 
     if config.cache:
-        config.cache.set('target', url, current)
+        await config.cache.set('target', url, current)
 
     return current

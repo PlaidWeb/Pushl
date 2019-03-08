@@ -73,17 +73,20 @@ class Feed:
         """ Update WebSub hub to know about this feed """
         try:
             LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
-            async with config.session.post(
-                    hub, data={
-                        'hub.mode': 'publish',
-                        'hub.url': self.url
-                    }) as request:
-                if 200 <= request.status < 300:
-                    LOGGER.info("%s: WebSub notification sent to %s",
-                                self.url, hub)
-                else:
-                    LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
-                                   request.status, await request.text())
+            request = await utils.retry_post(
+                config,
+                hub,
+                data={
+                    'hub.mode': 'publish',
+                    'hub.url': self.url
+                })
+
+            if request.success:
+                LOGGER.info("%s: WebSub notification sent to %s",
+                            self.url, hub)
+            else:
+                LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
+                               request.status, request.text)
         except Exception as err:  # pylint:disable=broad-except
             LOGGER.warning("WebSub %s: got %s: %s",
                            hub, err.__class__.__name__, err)
@@ -100,12 +103,12 @@ async def get_feed(config, url):
     retval -- a tuple of feed,previous_version,changed
     """
 
-    previous = config.cache.get(
+    previous = await config.cache.get(
         'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
     headers = previous.caching if previous else None
 
-    request = await utils.retry_get(config.session, url, headers=headers)
+    request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
         return None, previous, False
 
@@ -117,7 +120,7 @@ async def get_feed(config, url):
 
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
-        config.cache.set('feed', url, current)
+        await config.cache.set('feed', url, current)
 
     LOGGER.debug("%s: Returning new content", url)
     return current, previous, (not previous

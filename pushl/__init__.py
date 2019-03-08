@@ -3,6 +3,7 @@
 import queue
 import logging
 import asyncio
+import resource
 
 from . import feeds, caching, entries, webmentions
 
@@ -15,8 +16,14 @@ class Pushl:
 
     def __init__(self, session, args):
         """ Set up the process worker """
+        # limit the number of open files at once
+        max_files, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+        self.semaphore = asyncio.Semaphore(max_files - 20)
+
         self.args = args
-        self.cache = caching.Cache(args.cache_dir) if args.cache_dir else None
+
+        self.cache = caching.Cache(args.cache_dir,
+                                   self.semaphore) if args.cache_dir else None
         self.pending = queue.Queue()
         self.rel_whitelist = args.rel_whitelist.split(
             ',') if args.rel_whitelist else None
