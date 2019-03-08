@@ -3,7 +3,6 @@
 import queue
 import logging
 import asyncio
-import resource
 
 from . import feeds, caching, entries, webmentions
 
