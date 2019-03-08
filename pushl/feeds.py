@@ -53,10 +53,10 @@ class Feed:
 
         ns_prefix = self.archive_namespace
         if ns_prefix:
-            if ns_prefix + '_archive' in self.feed:
+            if ns_prefix + '_archive' in self.feed.feed:
                 # This is declared to be an archive view
                 return True
-            if ns_prefix + '_current' in self.feed:
+            if ns_prefix + '_current' in self.feed.feed:
                 # This is declared to be the current view
                 return False
 
@@ -64,10 +64,10 @@ class Feed:
         rels = collections.defaultdict(list)
         for link in self.feed.feed.links:
             rels[link.rel].append(link.href)
-        rels = self.links
+
         return ('current' in rels and
-                'self' in rels and
-                rels['self'] != rels['current'])
+                ('self' not in rels or
+                 rels['self'] != rels['current']))
 
     async def update_websub(self, config, hub):
         """ Update WebSub hub to know about this feed """
