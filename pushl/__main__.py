@@ -3,7 +3,6 @@
 import argparse
 import logging
 import asyncio
-import resource
 
 import aiohttp
 
@@ -39,13 +38,12 @@ def parse_args(*args):
                         help='Connection timeout, in seconds',
                         default=120)
 
-    max_files, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
     parser.add_argument('--max-connections', type=int, dest='max_connections',
                         help='Maximum number of connections to have open at once',
-                        default=int(max_files / 8))
+                        default=100)
     parser.add_argument('--max-per-host', type=int, dest='max_per_host',
                         help='Maximum number of connections per host',
-                        default=5)
+                        default=0)
 
     parser.add_argument('--rel-whitelist', '-w', dest='rel_whitelist', type=str,
                         help="Comma-separated list of link RELs to whitelist"
@@ -87,7 +85,8 @@ async def _run(loop):
 
     connector = aiohttp.TCPConnector(
         limit=args.max_connections,
-        limit_per_host=args.max_per_host
+        limit_per_host=args.max_per_host,
+        enable_cleanup_closed=True
     )
 
     # Time waiting for a connection pool entry to free up counts against total

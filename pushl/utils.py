@@ -3,6 +3,7 @@
 import re
 import logging
 import sys
+import asyncio
 
 import aiohttp
 
@@ -61,10 +62,8 @@ class RequestResult:
 
 
 async def _retry_do(func, url):
-    retries = 5
     errors = set()
-    while retries > 0:
-        retries -= 1
+    for retries in range(5):
         try:
             async with func(url) as request:
                 if request.status == 304:
@@ -75,9 +74,10 @@ async def _retry_do(func, url):
             return None
         except Exception:  # pylint:disable=broad-except
             exc_type, exc_value, _ = sys.exc_info()
-            LOGGER.debug("%s: got error %s %s (retries=%d)", url,
+            LOGGER.debug("%s: got error %s %s (retry=%d)", url,
                          exc_type, exc_value, retries)
             errors.add(str(exc_value))
+            await asyncio.sleep(retries)
 
     LOGGER.warning("%s: Exceeded maximum retries; errors: %s", url, errors)
     return None
@@ -85,11 +85,9 @@ async def _retry_do(func, url):
 
 async def retry_get(config, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
-    async with config.semaphore:
-        return await _retry_do((lambda url: config.session.get(url, *args, **kwargs)), url)
+    return await _retry_do((lambda url: config.session.get(url, *args, **kwargs)), url)
 
 
 async def retry_post(config, url, *args, **kwargs):
     """ aiohttp wrapper for POST """
-    async with config.semaphore:
-        return await _retry_do((lambda url: config.session.post(url, *args, **kwargs)), url)
+    return await _retry_do((lambda url: config.session.post(url, *args, **kwargs)), url)

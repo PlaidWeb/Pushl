@@ -5,6 +5,7 @@ import logging
 import hashlib
 import os
 import sys
+import asyncio
 
 from slugify import slugify
 
@@ -14,9 +15,9 @@ LOGGER = logging.getLogger(__name__)
 class Cache:
     """ A very simple file-based object cache """
 
-    def __init__(self, cache_dir, semaphore):
+    def __init__(self, cache_dir):
         self.cache_dir = cache_dir
-        self.semaphore = semaphore
+        self.semaphore = asyncio.Lock()
 
     def _get_cache_file(self, prefix, url):
         if not self.cache_dir:
