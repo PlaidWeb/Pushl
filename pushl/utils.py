@@ -59,7 +59,8 @@ class RequestResult:
         """ Is this request for a cache hit? """
         return self.status == 304
 
-async def _retry_do(session, func, url):
+
+async def _retry_do(func, url):
     retries = 5
     errors = set()
     while retries > 0:
@@ -72,7 +73,7 @@ async def _retry_do(session, func, url):
         except aiohttp.client_exceptions.ClientResponseError as err:
             LOGGER.warning("%s: got client response error: %s", url, str(err))
             return None
-        except:
+        except Exception:  # pylint:disable=broad-except
             exc_type, exc_value, _ = sys.exc_info()
             LOGGER.debug("%s: got error %s %s (retries=%d)", url,
                          exc_type, exc_value, retries)
@@ -84,9 +85,9 @@ async def _retry_do(session, func, url):
 
 async def retry_get(session, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
-    return await _retry_do(session, (lambda url: session.get(url, *args, **kwargs)), url)
+    return await _retry_do((lambda url: session.get(url, *args, **kwargs)), url)
 
 
 async def retry_post(session, url, *args, **kwargs):
     """ aiohttp wrapper for POST """
-    return await _retry_do(session, (lambda url: session.post(url, *args, **kwargs)), url)
+    return await _retry_do((lambda url: session.post(url, *args, **kwargs)), url)
