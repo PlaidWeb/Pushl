@@ -79,7 +79,7 @@ async def _retry_do(func, url, *args, **kwargs):
         except aiohttp.client_exceptions.ClientResponseError as err:
             LOGGER.warning("%s: got client response error: %s", url, str(err))
             return None
-        except ssl.SSLCertVerificationError as err:
+        except ssl.SSLError as err:
             LOGGER.warning(
                 "%s: SSL certificate validation failed: %s", url, str(err))
             return None
