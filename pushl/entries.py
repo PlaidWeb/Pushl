@@ -89,11 +89,11 @@ class Entry:
 
     def _domain_differs(self, href):
         """ Check that a link is not on the same domain as the source URL """
-        target = urllib.parse.urlparse(href).netloc.lower()
+        target = utils.get_domain(href)
         if not target:
             return False
 
-        origin = urllib.parse.urlparse(self.url).netloc.lower()
+        origin = utils.get_domain(self.url)
         return target != origin
 
     def get_targets(self, config):

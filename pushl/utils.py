@@ -4,6 +4,8 @@ import re
 import logging
 import sys
 import asyncio
+import urllib.parse
+import ssl
 
 import aiohttp
 
@@ -30,6 +32,11 @@ def guess_encoding(request):
 
     # everything else's default
     return 'utf-8'
+
+
+def get_domain(url):
+    """ Get the domain part of a URL """
+    return urllib.parse.urlparse(url).netloc.lower()
 
 
 class RequestResult:
@@ -61,16 +68,20 @@ class RequestResult:
         return self.status == 304
 
 
-async def _retry_do(func, url):
+async def _retry_do(func, url, *args, **kwargs):
     errors = set()
     for retries in range(5):
         try:
-            async with func(url) as request:
+            async with func(url, *args, **kwargs) as request:
                 if request.status == 304:
                     return RequestResult(request, None)
                 return RequestResult(request, await request.read())
         except aiohttp.client_exceptions.ClientResponseError as err:
             LOGGER.warning("%s: got client response error: %s", url, str(err))
+            return None
+        except ssl.SSLCertVerificationError as err:
+            LOGGER.warning(
+                "%s: SSL certificate validation failed: %s", url, str(err))
             return None
         except Exception:  # pylint:disable=broad-except
             exc_type, exc_value, _ = sys.exc_info()
@@ -85,9 +96,9 @@ async def _retry_do(func, url):
 
 async def retry_get(config, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
-    return await _retry_do((lambda url: config.session.get(url, *args, **kwargs)), url)
+    return await _retry_do(config.session.get, url, *args, **kwargs)
 
 
 async def retry_post(config, url, *args, **kwargs):
     """ aiohttp wrapper for POST """
-    return await _retry_do((lambda url: config.session.post(url, *args, **kwargs)), url)
+    return await _retry_do(config.session.post, url, *args, **kwargs)

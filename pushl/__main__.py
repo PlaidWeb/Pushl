@@ -53,6 +53,9 @@ def parse_args(*args):
                         + " from sending webmentions",
                         default="nofollow")
 
+    parser.add_argument('--max-time', '-m', dest='max_time', type=float,
+                        help="Maximum time (in seconds) to spend on this", default=1800)
+
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--keepalive', dest='keepalive', action='store_true',
                          help="Keep TCP connections alive")
@@ -81,15 +84,15 @@ def parse_args(*args):
 
 def main():
     """ main entry point """
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(_run(loop))
-
-
-async def _run(loop):
     args = parse_args()
     logging.basicConfig(level=LOG_LEVELS[min(
         args.verbosity, len(LOG_LEVELS) - 1)])
 
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(_run(args))
+
+
+async def _run(args):
     connector = aiohttp.TCPConnector(
         limit=args.max_connections,
         limit_per_host=args.max_per_host,
@@ -97,8 +100,8 @@ async def _run(loop):
         force_close=not args.keepalive
     )
 
-    # Time waiting for a connection pool entry to free up counts against total
-    # and connect, so instead we just set the new connection and the read
+    # Time spent waiting for a connection pool entry to free up counts against
+    # total and connect, so instead we just set the new connection and the read
     # timeout
     timeout = aiohttp.ClientTimeout(
         total=None,
@@ -106,22 +109,24 @@ async def _run(loop):
         sock_connect=args.timeout,
         sock_read=args.timeout)
 
-    async with aiohttp.ClientSession(loop=loop,
-                                     timeout=timeout,
+    async with aiohttp.ClientSession(timeout=timeout,
                                      connector=connector) as session:
         worker = Pushl(session, args)
-        pending = []
 
+        tasks = []
         for url in args.feeds or []:
-            pending.append(worker.process_feed(url))
+            tasks.append(worker.process_feed(url))
 
         for url in args.entries or []:
-            pending.append(worker.process_entry(url))
+            tasks.append(worker.process_entry(url, add_domain=True))
 
-        if pending:
-            await asyncio.wait(pending)
-
-    LOGGER.info("Completed all tasks")
+        if tasks:
+            _, timed_out = await asyncio.wait(tasks, timeout=args.max_time)
+        if timed_out:
+            LOGGER.info("Done. %d tasks did not complete within %d seconds",
+                        len(timed_out), args.max_time)
+        else:
+            LOGGER.info("Completed all tasks")
 
 
 if __name__ == "__main__":

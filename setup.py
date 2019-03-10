@@ -60,7 +60,8 @@ setup(
         'beautifulsoup4',
         'awesome-slugify',
         'aiohttp',
-        'lxml'
+        'lxml',
+        'async_lru'
     ],
 
     extras_require={

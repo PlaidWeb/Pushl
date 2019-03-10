@@ -103,12 +103,16 @@ async def get_feed(config, url):
     retval -- a tuple of feed,previous_version,changed
     """
 
+    LOGGER.debug("++WAIT: cache get feed %s", url)
     previous = await config.cache.get(
         'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
+    LOGGER.debug("++DONE: cache get feed %s", url)
 
     headers = previous.caching if previous else None
 
+    LOGGER.debug("++WAIT: request get %s", url)
     request = await utils.retry_get(config, url, headers=headers)
+    LOGGER.debug("++DONE: request get %s", url)
     if not request or not request.success:
         return None, previous, False
 
@@ -120,7 +124,9 @@ async def get_feed(config, url):
 
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
+        LOGGER.debug("++WAIT: cache set feed %s", url)
         await config.cache.set('feed', url, current)
+        LOGGER.debug("++DONE: cache set feed %s", url)
 
     LOGGER.debug("%s: Returning new content", url)
     return current, previous, (not previous

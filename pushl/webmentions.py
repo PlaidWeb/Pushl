@@ -1,12 +1,13 @@
 """ Functions for sending webmentions """
 
-import urllib.parse
-import logging
 from abc import ABC, abstractmethod
 import asyncio
-from lxml import etree
+import logging
+import urllib.parse
 
 from bs4 import BeautifulSoup
+from lxml import etree
+import async_lru
 
 from . import caching, utils
 
@@ -155,6 +156,7 @@ class Target:
                                self.url, err.__class__.__name__, err)
 
 
+@async_lru.alru_cache(maxsize=1000)
 async def get_target(config, url):
     """ Given a URL, get the webmention endpoint """
 
