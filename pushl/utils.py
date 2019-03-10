@@ -81,7 +81,7 @@ async def _retry_do(func, url, *args, **kwargs):
             return None
         except ssl.SSLError as err:
             LOGGER.warning(
-                "%s: SSL certificate validation failed: %s", url, str(err))
+                "%s: SSL error: %s", url, str(err))
             return None
         except Exception:  # pylint:disable=broad-except
             exc_type, exc_value, _ = sys.exc_info()
