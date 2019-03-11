@@ -53,7 +53,7 @@ class Cache:
     def set(self, prefix, url, obj):
         """ Add an object into the cache """
         if not self.cache_dir:
-            return None
+            return
 
         filename = self._get_cache_file(prefix, url)
 
