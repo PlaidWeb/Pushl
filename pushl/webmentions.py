@@ -160,7 +160,7 @@ class Target:
 async def get_target(config, url):
     """ Given a URL, get the webmention endpoint """
 
-    previous = await config.cache.get(
+    previous = config.cache.get(
         'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
 
     headers = previous.caching if previous else None
@@ -175,6 +175,6 @@ async def get_target(config, url):
     current = Target(request)
 
     if config.cache:
-        await config.cache.set('target', url, current)
+        config.cache.set('target', url, current)
 
     return current

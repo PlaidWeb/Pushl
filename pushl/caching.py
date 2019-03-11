@@ -5,7 +5,6 @@ import logging
 import hashlib
 import os
 import sys
-import asyncio
 
 from slugify import slugify
 
@@ -17,7 +16,6 @@ class Cache:
 
     def __init__(self, cache_dir):
         self.cache_dir = cache_dir
-        self.semaphore = asyncio.Lock()
 
     def _get_cache_file(self, prefix, url):
         if not self.cache_dir:
@@ -28,7 +26,7 @@ class Cache:
 
         return os.path.join(self.cache_dir, prefix, filename)
 
-    async def get(self, prefix, url, schema_version=None):
+    def get(self, prefix, url, schema_version=None):
         """ Get the cached object """
         if not self.cache_dir:
             return None
@@ -36,9 +34,8 @@ class Cache:
         filename = self._get_cache_file(prefix, url)
 
         try:
-            async with self.semaphore:
-                with open(filename, 'rb') as file:
-                    item = pickle.load(file)
+            with open(filename, 'rb') as file:
+                item = pickle.load(file)
             if schema_version and schema_version != item.schema:
                 LOGGER.info("Cache get %s %s: Wanted schema %d, got %d",
                             prefix, url,
@@ -53,21 +50,20 @@ class Cache:
 
         return None
 
-    async def set(self, prefix, url, obj):
+    def set(self, prefix, url, obj):
         """ Add an object into the cache """
         if not self.cache_dir:
             return None
 
         filename = self._get_cache_file(prefix, url)
 
-        async with self.semaphore:
-            try:
-                os.makedirs(os.path.join(self.cache_dir, prefix))
-            except OSError:
-                pass
+        try:
+            os.makedirs(os.path.join(self.cache_dir, prefix))
+        except OSError:
+            pass
 
-            with open(filename, 'wb') as file:
-                pickle.dump(obj, file)
+        with open(filename, 'wb') as file:
+            pickle.dump(obj, file)
 
 
 def make_headers(headers):

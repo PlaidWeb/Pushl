@@ -104,7 +104,7 @@ async def get_feed(config, url):
     """
 
     LOGGER.debug("++WAIT: cache get feed %s", url)
-    previous = await config.cache.get(
+    previous = config.cache.get(
         'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
     LOGGER.debug("++DONE: cache get feed %s", url)
 
@@ -125,7 +125,7 @@ async def get_feed(config, url):
     if config.cache:
         LOGGER.debug("%s: Saving to cache", url)
         LOGGER.debug("++WAIT: cache set feed %s", url)
-        await config.cache.set('feed', url, current)
+        config.cache.set('feed', url, current)
         LOGGER.debug("++DONE: cache set feed %s", url)
 
     LOGGER.debug("%s: Returning new content", url)

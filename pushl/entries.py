@@ -115,7 +115,7 @@ async def get_entry(config, url):
 
     Returns: 3-tuple of (current, previous, updated) """
 
-    previous = await config.cache.get(
+    previous = config.cache.get(
         'entry', url,
         schema_version=SCHEMA_VERSION) if config.cache else None
 
@@ -133,7 +133,7 @@ async def get_entry(config, url):
 
     # Content updated
     if config.cache:
-        await config.cache.set('entry', url, current)
+        config.cache.set('entry', url, current)
 
     return current, previous, (not previous
                                or previous.digest != current.digest
