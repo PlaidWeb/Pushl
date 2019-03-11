@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Entry:
