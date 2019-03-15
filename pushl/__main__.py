@@ -56,6 +56,9 @@ def parse_args(*args):
     parser.add_argument('--max-time', '-m', dest='max_time', type=float,
                         help="Maximum time (in seconds) to spend on this", default=1800)
 
+    parser.add_argument('--user-agent', dest='user_agent', type=str,
+                        help="User-agent string to send", default=__version__.USER_AGENT)
+
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--keepalive', dest='keepalive', action='store_true',
                          help="Keep TCP connections alive")
