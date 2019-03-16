@@ -105,6 +105,7 @@ def _make_headers(config, kwargs):
     kwargs['headers'] = headers
     return kwargs
 
+
 async def retry_get(config, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
     return await _retry_do(config.session.get, url, *args,
