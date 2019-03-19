@@ -37,16 +37,16 @@ class Cache:
             with open(filename, 'rb') as file:
                 item = pickle.load(file)
             if schema_version and schema_version != item.schema:
-                LOGGER.info("Cache get %s %s: Wanted schema %d, got %d",
-                            prefix, url,
-                            schema_version, item.schema)
+                LOGGER.debug("Cache get %s %s: Wanted schema %d, got %d",
+                             prefix, url,
+                             schema_version, item.schema)
                 return None
             return item
         except FileNotFoundError:
             pass
         except Exception:  # pylint:disable=broad-except
             _, msg, _ = sys.exc_info()
-            LOGGER.info("Cache get %s %s failed: %s", prefix, url, msg)
+            LOGGER.warning("Cache get %s %s failed: %s", prefix, url, msg)
 
         return None
 

@@ -27,6 +27,7 @@ def parse_args(*args):
     parser.add_argument('--cache', '-c', type=str, dest='cache_dir',
                         help='Cache storage directory',
                         required=False)
+
     parser.add_argument("-v", "--verbosity", action="count",
                         help="increase output verbosity",
                         default=0)

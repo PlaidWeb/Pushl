@@ -123,6 +123,8 @@ async def get_entry(config, url):
 
     request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
+        LOGGER.error("Could not get entry %s: %d", url,
+                     request.status if request else -1)
         return None, previous, False
 
     # cache hit

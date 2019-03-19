@@ -72,7 +72,7 @@ class Feed:
     async def update_websub(self, config, hub):
         """ Update WebSub hub to know about this feed """
         try:
-            LOGGER.info("WebSub: Notifying %s of %s", hub, self.url)
+            LOGGER.debug("WebSub: Notifying %s of %s", hub, self.url)
             request = await utils.retry_post(
                 config,
                 hub,
@@ -114,6 +114,8 @@ async def get_feed(config, url):
     request = await utils.retry_get(config, url, headers=headers)
     LOGGER.debug("++DONE: request get %s", url)
     if not request or not request.success:
+        LOGGER.error("Could not get feed %s: %d",
+                     request.status if request else -1)
         return None, previous, False
 
     if request.cached:

@@ -63,13 +63,13 @@ class Pushl:
                                                              'next-archive',
                                                              'prev-page',
                                                              'next-page'):
-                    LOGGER.info("Found archive link %s", link)
+                    LOGGER.debug("Found archive link %s", link)
                     pending.append(
                         ("process feed " + href, self.process_feed(href)))
 
                 # WebSub notification
                 if updated and link.get('rel') == 'hub' and not feed.is_archive:
-                    LOGGER.info("Found WebSub hub %s", link)
+                    LOGGER.debug("Found WebSub hub %s", link)
                     pending.append(
                         ("update websub " + href, feed.update_websub(self, href)))
         except (AttributeError, KeyError):
