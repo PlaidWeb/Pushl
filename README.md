@@ -84,6 +84,14 @@ this will also send webmentions from the blog page itself which is probably *not
 
 If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a` flag will scan past entries for WebMention as well. It is recommended to only use this flag when doing an initial backfill, as it can end up taking a long time on larger sites (and possibly make endpoint operators very grumpy at you). To send updates of much older entries it's better to just use `-e` to do it on a case-by-case basis.
 
+### Dual-protocol/multi-domain websites
+
+If you have a website which has multiple URLs that can access it (for example, http+https, or multiple domain names), you generally only want WebMentions to be sent from the canonical URL. You can configure this in Pushl by having the secondary feeds be WebSub-only, using the `-s/--websub-only` flag:
+
+```bash
+pushl -r https://example.com/feed -s http://example.com/feed http://alt-domain.example.com/feed
+```
+
 ## Automated updates
 
 `pushl` can be run from a cron job, although it's a good idea to use `flock -n` to prevent multiple instances from stomping on each other. An example cron job for updating a site might look like:
@@ -109,14 +117,23 @@ and created this script as `$HOME/pushl/run.sh`:
 
 cd $(dirname "$0")
 LOG=$(date +%Y%m%d.log)
-date >> $LOG
-flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc cache http://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed 2>&1 | tee -a "$LOG"
+
+if [ "$1" == "quiet" ] ; then
+    exec >> $LOG 2>&1
+else
+    exec 2>&1 | tee -a $LOG
+fi
+
+date
+flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc cache \
+    https://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed \
+    -s http://beesbuzz.biz/feed
 ```
 
 Then I have a cron job:
 
 ```crontab
-*/5 * * * * $HOME/pushl/run.sh
+*/5 * * * * $HOME/pushl/run.sh quiet
 ```
 
 which runs it every 5 minutes.

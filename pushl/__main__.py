@@ -35,6 +35,9 @@ def parse_args(*args):
                         help='URLs to entries/pages to index directly',
                         metavar='entry_url',
                         dest='entries')
+    parser.add_argument("-s", "--websub-only", nargs='+',
+                        help='URLs/feeds to only send WebSub notifications for',
+                        metavar='feed_url', dest='websub_only')
     parser.add_argument('--timeout', '-t', type=int, dest='timeout',
                         help='Connection timeout, in seconds',
                         default=120)
@@ -120,6 +123,9 @@ async def _run(args):
         tasks = []
         for url in args.feeds or []:
             tasks.append(worker.process_feed(url))
+
+        for url in args.websub_only or []:
+            tasks.append(worker.process_feed(url, False))
 
         for url in args.entries or []:
             tasks.append(worker.process_entry(url, add_domain=True))
