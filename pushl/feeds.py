@@ -115,6 +115,7 @@ async def get_feed(config, url):
     LOGGER.debug("++DONE: request get %s", url)
     if not request or not request.success:
         LOGGER.error("Could not get feed %s: %d",
+                     url,
                      request.status if request else -1)
         return None, previous, False
 
