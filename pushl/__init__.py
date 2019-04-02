@@ -128,6 +128,8 @@ class Pushl:
                     if utils.get_domain(feed) in self._feed_domains:
                         pending.append(("process feed " + feed,
                                         self.process_feed(feed)))
+                    else:
+                        LOGGER.info("Ignoring non-local feed %s", feed)
 
         LOGGER.debug("--- finish process_entry %s", url)
 
