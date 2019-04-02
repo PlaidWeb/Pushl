@@ -28,7 +28,7 @@ class Pushl:
 
         self.session = session
 
-    async def process_feed(self, url):
+    async def process_feed(self, url, send_mentions=True):
         """ process a feed """
 
         self._feed_domains.add(utils.get_domain(url))
@@ -48,7 +48,7 @@ class Pushl:
         if not feed:
             return
 
-        LOGGER.debug("--- starting process_feed %s", url)
+        LOGGER.debug("--- starting process_feed %s %s", url, send_mentions)
 
         pending = []
 
@@ -63,13 +63,13 @@ class Pushl:
                                                              'next-archive',
                                                              'prev-page',
                                                              'next-page'):
-                    LOGGER.info("Found archive link %s", link)
+                    LOGGER.debug("Found archive link %s", link)
                     pending.append(
-                        ("process feed " + href, self.process_feed(href)))
+                        ("process feed " + href, self.process_feed(href, send_mentions)))
 
                 # WebSub notification
                 if updated and link.get('rel') == 'hub' and not feed.is_archive:
-                    LOGGER.info("Found WebSub hub %s", link)
+                    LOGGER.debug("Found WebSub hub %s", link)
                     pending.append(
                         ("update websub " + href, feed.update_websub(self, href)))
         except (AttributeError, KeyError):
@@ -81,9 +81,9 @@ class Pushl:
             items |= set(previous.entry_links)
         for entry in items:
             pending.append(("process entry " + entry,
-                            self.process_entry(entry)))
+                            self.process_entry(entry, send_mentions=send_mentions)))
 
-        LOGGER.debug("--- finish process_feed %s", url)
+        LOGGER.debug("--- finish process_feed %s %s", url, send_mentions)
 
         if pending:
             LOGGER.debug("+++WAIT: process_feed(%s): %d subtasks",
@@ -93,7 +93,7 @@ class Pushl:
             LOGGER.debug("+++DONE: process_feed(%s): %d subtasks",
                          url, len(pending))
 
-    async def process_entry(self, url, add_domain=False):
+    async def process_entry(self, url, add_domain=False, send_mentions=True):
         """ process an entry """
 
         if add_domain:
@@ -113,21 +113,22 @@ class Pushl:
         pending = []
 
         if updated:
-            # get the webmention targets
-            links = entry.get_targets(self)
-            if previous:
-                # Only bother with links that changed from the last time
-                links = links ^ previous.get_targets(self)
+            if send_mentions:
+                # get the webmention targets
+                links = entry.get_targets(self)
+                if previous:
+                    # Only bother with links that changed from the last time
+                    links = links ^ previous.get_targets(self)
 
-            for link in links:
-                pending.append(("send webmention {} -> {}".format(url, link),
-                                self.send_webmention(entry, link)))
+                for link in links:
+                    pending.append(("send webmention {} -> {}".format(url, link),
+                                    self.send_webmention(entry, link)))
 
             if self.args.recurse:
                 for feed in entry.feeds:
                     if utils.get_domain(feed) in self._feed_domains:
                         pending.append(("process feed " + feed,
-                                        self.process_feed(feed)))
+                                        self.process_feed(feed, send_mentions=send_mentions)))
                     else:
                         LOGGER.info("Ignoring non-local feed %s", feed)
 

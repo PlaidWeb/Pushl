@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Entry:
@@ -123,6 +123,8 @@ async def get_entry(config, url):
 
     request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
+        LOGGER.error("Could not get entry %s: %d", url,
+                     request.status if request else -1)
         return None, previous, False
 
     # cache hit

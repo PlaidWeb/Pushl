@@ -27,6 +27,7 @@ def parse_args(*args):
     parser.add_argument('--cache', '-c', type=str, dest='cache_dir',
                         help='Cache storage directory',
                         required=False)
+
     parser.add_argument("-v", "--verbosity", action="count",
                         help="increase output verbosity",
                         default=0)
@@ -34,6 +35,9 @@ def parse_args(*args):
                         help='URLs to entries/pages to index directly',
                         metavar='entry_url',
                         dest='entries')
+    parser.add_argument("-s", "--websub-only", nargs='+',
+                        help='URLs/feeds to only send WebSub notifications for',
+                        metavar='feed_url', dest='websub_only')
     parser.add_argument('--timeout', '-t', type=int, dest='timeout',
                         help='Connection timeout, in seconds',
                         default=120)
@@ -55,6 +59,9 @@ def parse_args(*args):
 
     parser.add_argument('--max-time', '-m', dest='max_time', type=float,
                         help="Maximum time (in seconds) to spend on this", default=1800)
+
+    parser.add_argument('--user-agent', dest='user_agent', type=str,
+                        help="User-agent string to send", default=__version__.USER_AGENT)
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--keepalive', dest='keepalive', action='store_true',
@@ -116,6 +123,9 @@ async def _run(args):
         tasks = []
         for url in args.feeds or []:
             tasks.append(worker.process_feed(url))
+
+        for url in args.websub_only or []:
+            tasks.append(worker.process_feed(url, False))
 
         for url in args.entries or []:
             tasks.append(worker.process_entry(url, add_domain=True))

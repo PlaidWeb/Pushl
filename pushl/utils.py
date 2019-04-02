@@ -94,11 +94,25 @@ async def _retry_do(func, url, *args, **kwargs):
     return None
 
 
+def _make_headers(config, kwargs):
+    """ Replace the kwargs with one where the headers include our user-agent """
+
+    headers = kwargs.get('headers')
+    headers = headers.copy() if headers is not None else {}
+    headers['User-Agent'] = config.args.user_agent
+
+    kwargs = kwargs.copy()
+    kwargs['headers'] = headers
+    return kwargs
+
+
 async def retry_get(config, url, *args, **kwargs):
     """ aiohttp wrapper for GET """
-    return await _retry_do(config.session.get, url, *args, **kwargs)
+    return await _retry_do(config.session.get, url, *args,
+                           **_make_headers(config, kwargs))
 
 
 async def retry_post(config, url, *args, **kwargs):
     """ aiohttp wrapper for POST """
-    return await _retry_do(config.session.post, url, *args, **kwargs)
+    return await _retry_do(config.session.post, url, *args,
+                           **_make_headers(config, kwargs))
