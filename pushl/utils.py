@@ -55,7 +55,7 @@ class RequestResult:
     @property
     def success(self):
         """ Was this request successful? """
-        return 200 <= self.status < 300 or self.cached
+        return 200 <= self.status < 300 or self.cached or self.gone
 
     @property
     def gone(self):

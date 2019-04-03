@@ -113,6 +113,7 @@ class Pushl:
         pending = []
 
         if updated:
+            LOGGER.info("Processing entry: %s", url)
             if send_mentions:
                 # get the webmention targets
                 links = entry.get_targets(self)
