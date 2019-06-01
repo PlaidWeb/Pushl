@@ -102,15 +102,14 @@ pushl -r https://example.com/feed -s http://example.com/feed http://alt-domain.e
 
 ### My setup
 
-I use [`pipenv`](http://pipenv.org) to keep my Python environments separate. My initial setup looked something like this:
+In my setup, I have `pushl` installed in my website's pipenv:
 
 ```bash
-mkdir $HOME/pushl
-cd $HOME/pushl
+cd $HOME/beesbuzz.biz
 pipenv install pushl
 ```
 
-and created this script as `$HOME/pushl/run.sh`:
+and created this script as `$HOME/beesbuzz.biz/pushl.sh`:
 
 ```bash
 #!/bin/sh
@@ -125,15 +124,19 @@ else
 fi
 
 date
-flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc cache \
-    https://beesbuzz.biz/feed http://publ.beesbuzz.biz/feed \
+flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc $HOME/var/pushl \
+    https://beesbuzz.biz/feed \
+    http://publ.beesbuzz.biz/feed \
+    https://tumblr.beesbuzz.biz/rss \
     -s http://beesbuzz.biz/feed
 ```
 
 Then I have a cron job:
 
 ```crontab
-*/5 * * * * $HOME/pushl/run.sh quiet
+*/5 * * * * $HOME/beesbuzz.biz/pushl.sh quiet
 ```
 
 which runs it every 5 minutes.
+
+I also have a [git deployment hook](http://publ.beesbuzz.biz/441) for my website, and its final step (after restarting `gunicorn`) is to run `pushl.sh`, in case a maximum latency of 5 minutes just isn't fast enough.
