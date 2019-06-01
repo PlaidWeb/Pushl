@@ -47,6 +47,10 @@ class WebmentionEndpoint(Endpoint):
                             self.endpoint, request.headers['retry-after'])
                 asyncio.sleep(float(request.headers['retry-after']))
             else:
+                if request:
+                    text = request.text
+                    LOGGER.debug("%s: %s gave response %s",
+                                 self.endpoint, target, text)
                 return request and request.success
 
         LOGGER.info("%s: no more retries", self.endpoint)
@@ -148,7 +152,7 @@ class Target:
     async def send(self, config, entry):
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
-            LOGGER.debug("%s -> %s", entry.url, self.url)
+            LOGGER.debug("%s -> %s via %s", entry.url, self.url, self.endpoint)
             try:
                 await self.endpoint.send(config, entry.url, self.url)
             except Exception as err:  # pylint:disable=broad-except
