@@ -1,4 +1,4 @@
-"""Setup for Publ packaging"""
+"""Setup for Pushl packaging"""
 
 # Always prefer setuptools over distutils
 from setuptools import setup
@@ -71,7 +71,7 @@ setup(
     project_urls={
         'Bug Reports': 'https://github.com/PlaidWeb/Pushl/issues',
         'Source': 'https://github.com/PlaidWeb/Pushl/',
-        'Discord': 'https://discord.gg/xADP3ja',
+        'Discord': 'https://beesbuzz.biz/discord',
         'Funding': 'https://liberapay.com/fluffy',
     },
 
