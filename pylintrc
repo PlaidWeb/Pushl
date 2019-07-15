@@ -1,0 +1,5 @@
+[MASTER]
+extension-pkg-whitelist=lxml
+
+[SIMILARITIES]
+ignore-imports=yes

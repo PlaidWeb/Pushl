@@ -7,6 +7,8 @@ verify_ssl = true
 pylint = "*"
 flake8 = "*"
 twine = "*"
+isort = "*"
+autopep8 = "*"
 
 [packages]
 pushl = {editable = true,path = "."}
