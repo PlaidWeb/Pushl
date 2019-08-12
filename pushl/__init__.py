@@ -106,14 +106,15 @@ class Pushl:
 
         LOGGER.debug("++WAIT: get entry %s", url)
         entry, previous, updated = await entries.get_entry(self, url)
-        LOGGER.debug("++DONE: get entry %s", url)
+        LOGGER.debug("++DONE: get entry %s entry=%s previous=%s updated=%s", url,
+                     bool(entry), bool(previous), updated)
 
         LOGGER.debug("--- starting process_entry %s", url)
 
         pending = []
 
         if updated:
-            LOGGER.info("Processing entry: %s", url)
+            LOGGER.info("Processing entry: %s send_mentions=%s", url, send_mensions)
             if send_mentions:
                 # get the webmention targets
                 links = entry.get_targets(self)
