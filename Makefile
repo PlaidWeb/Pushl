@@ -1,4 +1,9 @@
-all: pylint flake8
+all: format pylint flake8
+
+.PHONY: format
+format:
+	pipenv run isort -y
+	pipenv run autopep8 -r --in-place .
 
 .PHONY: format
 format:

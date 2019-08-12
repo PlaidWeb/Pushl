@@ -1,13 +1,12 @@
 """ Pushl - a tool for pushing updates from a content feed to another destination """
 
 import argparse
-import logging
 import asyncio
+import logging
 
 import aiohttp
 
 from . import Pushl, __version__
-
 
 LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
 
