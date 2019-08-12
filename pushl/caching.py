@@ -1,9 +1,9 @@
 """ Simple caching functions """
 
-import pickle
-import logging
 import hashlib
+import logging
 import os
+import pickle
 import sys
 
 from slugify import slugify

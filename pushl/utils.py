@@ -1,11 +1,11 @@
 """ Utility functions """
 
-import re
-import logging
-import sys
 import asyncio
-import urllib.parse
+import logging
+import re
 import ssl
+import sys
+import urllib.parse
 
 import aiohttp
 

@@ -1,9 +1,9 @@
 """ Functionality to add push-ish notifications to feed-based sites """
 
-import logging
 import asyncio
+import logging
 
-from . import feeds, caching, entries, webmentions, utils
+from . import caching, entries, feeds, utils, webmentions
 
 LOGGER = logging.getLogger("pushl")
 
@@ -119,6 +119,7 @@ class Pushl:
                 links = entry.get_targets(self)
                 if previous:
                     # Only bother with links that changed from the last time
+                    LOGGER.debug("%s: excluding previously-checked targets", url)
                     links = links ^ previous.get_targets(self)
 
                 for link in links:

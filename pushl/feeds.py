@@ -1,8 +1,8 @@
 """ Functionality for handling feeds """
 
-import logging
 import collections
 import hashlib
+import logging
 
 import feedparser
 

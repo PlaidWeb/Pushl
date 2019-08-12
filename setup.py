@@ -1,9 +1,10 @@
 """Setup for Pushl packaging"""
 
-# Always prefer setuptools over distutils
-from setuptools import setup
 from distutils.util import convert_path
 from os import path
+
+# Always prefer setuptools over distutils
+from setuptools import setup
 
 here = path.abspath(path.dirname(__file__))
 

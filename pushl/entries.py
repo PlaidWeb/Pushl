@@ -1,8 +1,8 @@
 """ Functions for handling entries """
 
+import hashlib
 import logging
 import urllib.parse
-import hashlib
 
 from bs4 import BeautifulSoup
 
@@ -129,6 +129,7 @@ async def get_entry(config, url):
 
     # cache hit
     if request.cached:
+        LOGGER.debug("%s: entry unchanged", url)
         return previous, previous, False
 
     current = Entry(request)

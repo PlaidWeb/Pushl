@@ -1,13 +1,13 @@
 """ Functions for sending webmentions """
 
-from abc import ABC, abstractmethod
 import asyncio
 import logging
 import urllib.parse
+from abc import ABC, abstractmethod
 
+import async_lru
 from bs4 import BeautifulSoup
 from lxml import etree
-import async_lru
 
 from . import caching, utils
 
@@ -156,8 +156,8 @@ class Target:
             try:
                 await self.endpoint.send(config, entry.url, self.url)
             except Exception as err:  # pylint:disable=broad-except
-                LOGGER.warning("Ping %s: got %s: %s",
-                               self.url, err.__class__.__name__, err)
+                LOGGER.exception("Ping %s: got %s: %s",
+                                 self.url, err.__class__.__name__, err)
 
 
 @async_lru.alru_cache(maxsize=1000)
