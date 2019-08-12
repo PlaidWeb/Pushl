@@ -119,9 +119,12 @@ class Pushl:
                 links = entry.get_targets(self)
                 if previous:
                     # Only bother with links that changed from the last time
-                    LOGGER.debug("%s: excluding previously-checked targets", url)
-                    links = links ^ previous.get_targets(self)
+                    LOGGER.debug("targets before: %s", links)
+                    invert = previous.get_targets(self)
+                    LOGGER.debug("%s: excluding previously-checked targets %s", url, invert)
+                    links = links ^ invert
 
+                LOGGER.info("%s: Mention targets: %s", url, links)
                 for link in links:
                     pending.append(("send webmention {} -> {}".format(url, link),
                                     self.send_webmention(entry, link)))
