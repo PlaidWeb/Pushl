@@ -33,10 +33,10 @@ class Pushl:
 
         self._feed_domains.add(utils.get_domain(url))
 
-        if url in self._processed_feeds:
+        if (url, send_mentions) in self._processed_feeds:
             LOGGER.debug("Skipping already processed feed %s", url)
             return
-        self._processed_feeds.add(url)
+        self._processed_feeds.add((url, send_mentions))
 
         LOGGER.debug("++WAIT: %s: get feed", url)
         feed, previous, updated = await feeds.get_feed(self, url)
@@ -99,10 +99,10 @@ class Pushl:
         if add_domain:
             self._feed_domains.add(utils.get_domain(url))
 
-        if url in self._processed_entries:
+        if (url, send_mentions) in self._processed_entries:
             LOGGER.debug("Skipping already processed entry %s", url)
             return
-        self._processed_entries.add(url)
+        self._processed_entries.add((url, send_mentions))
 
         LOGGER.debug("++WAIT: get entry %s", url)
         entry, previous, updated = await entries.get_entry(self, url)
@@ -114,7 +114,7 @@ class Pushl:
         pending = []
 
         if updated:
-            LOGGER.info("Processing entry: %s send_mentions=%s", url, send_mensions)
+            LOGGER.info("Processing entry: %s send_mentions=%s", url, send_mentions)
             if send_mentions:
                 # get the webmention targets
                 links = entry.get_targets(self)
