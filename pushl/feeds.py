@@ -69,28 +69,6 @@ class Feed:
                 ('self' not in rels or
                  rels['self'] != rels['current']))
 
-    async def update_websub(self, config, hub):
-        """ Update WebSub hub to know about this feed """
-        try:
-            LOGGER.debug("WebSub: Notifying %s of %s", hub, self.url)
-            request = await utils.retry_post(
-                config,
-                hub,
-                data={
-                    'hub.mode': 'publish',
-                    'hub.url': self.url
-                })
-
-            if request.success:
-                LOGGER.info("%s: WebSub notification sent to %s",
-                            self.url, hub)
-            else:
-                LOGGER.warning("%s: Hub %s returned status code %s: %s", self.url, hub,
-                               request.status, request.text)
-        except Exception as err:  # pylint:disable=broad-except
-            LOGGER.warning("WebSub %s: got %s: %s",
-                           hub, err.__class__.__name__, err)
-
 
 async def get_feed(config, url):
     """ Get a feed
