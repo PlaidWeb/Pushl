@@ -5,11 +5,6 @@ format:
 	pipenv run isort -y
 	pipenv run autopep8 -r --in-place .
 
-.PHONY: format
-format:
-	pipenv run isort -y
-	pipenv run autopep8 -r --in-place .
-
 .PHONY: pylint
 pylint:
 	pipenv run pylint pushl

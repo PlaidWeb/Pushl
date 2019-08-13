@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from . import caching, entries, feeds, utils, webmentions
+from . import caching, entries, feeds, utils, webmentions, websub
 
 LOGGER = logging.getLogger("pushl")
 
@@ -25,6 +25,8 @@ class Pushl:
         self._processed_entries = set()
         self._processed_mentions = set()
         self._feed_domains = set()
+
+        self._processed_websub = set()
 
         self.session = session
 
@@ -71,7 +73,7 @@ class Pushl:
                 if updated and link.get('rel') == 'hub' and not feed.is_archive:
                     LOGGER.debug("Found WebSub hub %s", link)
                     pending.append(
-                        ("update websub " + href, feed.update_websub(self, href)))
+                        ("update websub " + href, self.send_websub(feed.url, href)))
         except (AttributeError, KeyError):
             LOGGER.debug("Feed %s has no links", url)
 
@@ -138,6 +140,10 @@ class Pushl:
                     else:
                         LOGGER.info("Ignoring non-local feed %s", feed)
 
+            for hub in entry.hubs:
+                pending.append(("send websub {} -> {}".format(url, hub),
+                                self.send_websub(url, hub)))
+
         LOGGER.debug("--- finish process_entry %s", url)
 
         if pending:
@@ -154,6 +160,7 @@ class Pushl:
         if (entry.url, url) in self._processed_mentions:
             LOGGER.debug(
                 "Skipping already processed mention %s -> %s", entry.url, url)
+            return
         self._processed_mentions.add((entry.url, url))
 
         LOGGER.debug("++WAIT: webmentions.get_target %s", url)
@@ -164,3 +171,13 @@ class Pushl:
             LOGGER.debug("++WAIT: Sending webmention %s -> %s", entry.url, url)
             await target.send(self, entry)
             LOGGER.debug("++DONE: Sending webmention %s -> %s", entry.url, url)
+
+    async def send_websub(self, url, hub):
+        """ send a websub notification """
+
+        if (url, hub) in self._processed_websub:
+            LOGGER.debug("Skipping already processed websub %s -> %s", url, hub)
+            return
+        self._processed_websub.add((url, hub))
+
+        websub.send(self, url, hub)

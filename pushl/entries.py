@@ -14,7 +14,7 @@ SCHEMA_VERSION = 3
 
 class Entry:
     """ Encapsulates a scanned entry """
-    # pylint:disable=too-few-public-methods
+    # pylint:disable=too-few-public-methods,too-many-instance-attributes
 
     def __init__(self, request):
         """ Build an Entry from a completed request """
@@ -44,9 +44,15 @@ class Entry:
                           and 'type' in link.attrs
                           and link.attrs['type'] in ('application/rss.xml',
                                                      'application/atom+xml')]
+
+            self.hubs = [link.attrs['href'] for link in soup.find_all('link', rel='hub')]
+            if 'hub' in request.links:
+                self.hubs.append(request.links['hub']['url'])
+
         else:
             self._targets = []
             self.feeds = []
+            self.hubs = []
 
         self.schema = SCHEMA_VERSION
 
