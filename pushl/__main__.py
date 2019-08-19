@@ -132,8 +132,8 @@ async def _run(args):
         if tasks:
             _, timed_out = await asyncio.wait(tasks, timeout=args.max_time)
         if timed_out:
-            LOGGER.info("Done. %d tasks did not complete within %d seconds",
-                        len(timed_out), args.max_time)
+            LOGGER.warning("Done. %d tasks did not complete within %d seconds",
+                           len(timed_out), args.max_time)
         else:
             LOGGER.info("Completed all tasks")
 
