@@ -180,4 +180,4 @@ class Pushl:
             return
         self._processed_websub.add((url, hub))
 
-        websub.send(self, url, hub)
+        await websub.send(self, url, hub)
