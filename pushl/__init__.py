@@ -127,7 +127,8 @@ class Pushl:
                     LOGGER.debug("%s: excluding previously-checked targets %s", url, invert)
                     links = links ^ invert
 
-                LOGGER.info("%s: Mention targets: %s", url, links)
+                if links:
+                    LOGGER.info("%s: Mention targets: %s", url, ' '.join(links))
                 for link in links:
                     pending.append(("send webmention {} -> {}".format(url, link),
                                     self.send_webmention(entry, link)))
