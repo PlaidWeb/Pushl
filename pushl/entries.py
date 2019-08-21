@@ -107,10 +107,15 @@ class Entry:
         """ Given an Entry object, return all of the outgoing links, as a tuple
         of (resolved_url, original_href). """
 
-        return {(urllib.parse.urljoin(self.url, attrs['href']), attrs['href'])
-                for attrs in self._targets
-                if self._check_rel(attrs, config.rel_whitelist, config.rel_blacklist)
-                and self._domain_differs(attrs['href'])}
+        hrefs = [attrs['href']
+                 for attrs in self._targets
+                 if 'href' in attrs and self._check_rel(attrs,
+                                                        config.rel_whitelist,
+                                                        config.rel_blacklist)]
+
+        return {(urllib.parse.urljoin(self.url, href), href)
+                for href in hrefs
+                if self._domain_differs(href)}
 
 
 async def get_entry(config, url):
