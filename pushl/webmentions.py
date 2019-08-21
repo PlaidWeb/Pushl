@@ -163,6 +163,12 @@ class Target:
                 LOGGER.exception("Ping %s: got %s: %s",
                                  self.resolved, err.__class__.__name__, err)
 
+            if self.resolved != self.href:
+                # pylint:disable=line-too-long
+                LOGGER.warning(
+                    "Note: For greatest compatibility, URL %s (referenced from %s) should be updated to %s",
+                    self.href, entry.url, self.resolved)
+
 
 @async_lru.alru_cache(maxsize=1000)
 async def get_target(config, url, href):

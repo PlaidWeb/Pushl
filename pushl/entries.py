@@ -45,7 +45,8 @@ class Entry:
                           and link.attrs['type'] in ('application/rss.xml',
                                                      'application/atom+xml')]
 
-            self.hubs = [link.attrs['href'] for link in soup.find_all('link', rel='hub')]
+            self.hubs = [link.attrs['href']
+                         for link in soup.find_all('link', rel='hub')]
             if 'hub' in request.links:
                 self.hubs.append(request.links['hub']['url'])
 

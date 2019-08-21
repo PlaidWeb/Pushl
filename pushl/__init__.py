@@ -117,7 +117,8 @@ class Pushl:
         pending = []
 
         if updated:
-            LOGGER.info("Processing entry: %s send_mentions=%s", url, send_mentions)
+            LOGGER.info("Processing entry: %s send_mentions=%s",
+                        url, send_mentions)
             if send_mentions:
                 # get the webmention targets
                 links = entry.get_targets(self)
@@ -125,7 +126,8 @@ class Pushl:
                     # Only bother with links that changed from the last time
                     LOGGER.debug("targets before: %s", links)
                     invert = previous.get_targets(self)
-                    LOGGER.debug("%s: excluding previously-checked targets %s", url, invert)
+                    LOGGER.debug(
+                        "%s: excluding previously-checked targets %s", url, invert)
                     links = links ^ invert
 
                 if links:
@@ -171,15 +173,18 @@ class Pushl:
         LOGGER.debug("++DONE: webmentions.get_target %s", resolved)
 
         if target:
-            LOGGER.debug("++WAIT: Sending webmention %s -> %s", entry.url, href)
+            LOGGER.debug("++WAIT: Sending webmention %s -> %s",
+                         entry.url, href)
             await target.send(self, entry)
-            LOGGER.debug("++DONE: Sending webmention %s -> %s", entry.url, href)
+            LOGGER.debug("++DONE: Sending webmention %s -> %s",
+                         entry.url, href)
 
     async def send_websub(self, url, hub):
         """ send a websub notification """
 
         if (url, hub) in self._processed_websub:
-            LOGGER.debug("Skipping already processed websub %s -> %s", url, hub)
+            LOGGER.debug(
+                "Skipping already processed websub %s -> %s", url, hub)
             return
         self._processed_websub.add((url, hub))
 
