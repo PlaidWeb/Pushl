@@ -164,13 +164,13 @@ class Target:
                 LOGGER.exception("Ping %s: got %s: %s",
                                  self.resolved, err.__class__.__name__, err)
 
-        # If the resolved URL is different than the (de-fragmented) HREF URL,
-        # show a warning since that can affect the validity of webmentions
-        if self.resolved != re.sub(r'#.*', r'', self.href):
-            # pylint:disable=line-too-long
-            LOGGER.warning(
-                "For the best compatibility, URL %s (referenced from %s) should be updated to %s",
-                self.href, entry.url, self.resolved)
+            # If the resolved URL is different than the (de-fragmented) HREF URL,
+            # show a warning since that can affect the validity of webmentions
+            if self.resolved != re.sub(r'#.*', r'', self.href):
+                # pylint:disable=line-too-long
+                LOGGER.warning(
+                    "For the best compatibility, URL %s (referenced from %s) should be updated to %s",
+                    self.href, entry.url, self.resolved)
 
 
 @async_lru.alru_cache(maxsize=1000)
