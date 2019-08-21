@@ -103,9 +103,10 @@ class Entry:
         return target != origin
 
     def get_targets(self, config):
-        """ Given an Entry object, return all of the outgoing links. """
+        """ Given an Entry object, return all of the outgoing links, as a tuple
+        of (resolved_url, original_href). """
 
-        return {urllib.parse.urljoin(self.url, attrs['href'])
+        return {(urllib.parse.urljoin(self.url, attrs['href']), attrs['href'])
                 for attrs in self._targets
                 if self._check_rel(attrs, config.rel_whitelist, config.rel_blacklist)
                 and self._domain_differs(attrs['href'])}

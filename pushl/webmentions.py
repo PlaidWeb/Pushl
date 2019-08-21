@@ -23,7 +23,7 @@ class Endpoint(ABC):
         self.endpoint = endpoint
 
     @abstractmethod
-    async def send(self, config, entry, target):
+    async def send(self, config, entry, href):
         """ Send the mention via this protocol """
 
 
@@ -31,14 +31,14 @@ class WebmentionEndpoint(Endpoint):
     """ Implementation of the webmention protocol """
     # pylint:disable=too-few-public-methods
 
-    async def send(self, config, entry, target):
-        LOGGER.info("Sending Webmention %s -> %s", entry, target)
+    async def send(self, config, entry, href):
+        LOGGER.info("Sending Webmention %s -> %s", entry, href)
         retries = 5
         while retries > 0:
             request = await utils.retry_post(config,
                                              self.endpoint,
                                              data={'source': entry,
-                                                   'target': target
+                                                   'target': href
                                                    })
 
             if request and 'retry-after' in request.headers:
@@ -49,8 +49,10 @@ class WebmentionEndpoint(Endpoint):
             else:
                 if request:
                     text = request.text
-                    LOGGER.debug("%s: %s gave response %s",
-                                 self.endpoint, target, text)
+                    LOGGER.info("%s: mention of %s %s: %s",
+                                self.endpoint, href,
+                                "succeeded" if request.success else "failed",
+                                text)
                 return request and request.success
 
         LOGGER.info("%s: no more retries", self.endpoint)
@@ -71,8 +73,8 @@ class PingbackEndpoint(Endpoint):
         param.append(value)
         return param
 
-    async def send(self, config, entry, target):
-        LOGGER.info("Sending Pingback %s -> %s", entry, target)
+    async def send(self, config, entry, href):
+        LOGGER.info("Sending Pingback %s -> %s", entry, href)
 
         root = etree.Element('methodCall')
         method = etree.Element('methodName')
@@ -83,7 +85,7 @@ class PingbackEndpoint(Endpoint):
         root.append(params)
 
         params.append(self._make_param(entry))
-        params.append(self._make_param(target))
+        params.append(self._make_param(href))
 
         body = etree.tostring(root,
                               xml_declaration=True)
@@ -97,7 +99,7 @@ class PingbackEndpoint(Endpoint):
 
         if not request.success:
             LOGGER.info("%s -> %s: Got status code %d",
-                        entry, target, request.status)
+                        entry, href, request.status)
             # someday I'll parse out the response but IDGAF
 
         return request.success
@@ -107,8 +109,9 @@ class Target:
     """ A target of a webmention """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, request):
-        self.url = str(request.url)  # the canonical, final URL
+    def __init__(self, request, href):
+        self.resolved = str(request.url)  # the canonical, final URL
+        self.href = href
         self.status = request.status
         self.caching = caching.make_headers(request.headers)
         self.schema = SCHEMA_VERSION
@@ -120,7 +123,7 @@ class Target:
 
     def _get_endpoint(self, request, text):
         def join(url):
-            return urllib.parse.urljoin(self.url, str(url))
+            return urllib.parse.urljoin(self.resolved, str(url))
 
         for rel, link in request.links.items():
             if link.get('url') and 'webmention' in rel.split():
@@ -138,13 +141,13 @@ class Target:
         for link in soup.find_all(('link', 'a'), rel='webmention'):
             if link.attrs.get('href'):
                 return WebmentionEndpoint(
-                    urllib.parse.urljoin(self.url,
+                    urllib.parse.urljoin(self.resolved,
                                          link.attrs['href']))
 
         for link in soup.find_all(('link', 'a'), rel='pingback'):
             if link.attrs.get('href'):
                 return PingbackEndpoint(
-                    urllib.parse.urljoin(self.url,
+                    urllib.parse.urljoin(self.resolved,
                                          link.attrs['href']))
 
         return None
@@ -152,17 +155,18 @@ class Target:
     async def send(self, config, entry):
         """ Send a webmention to this target from the specified entry """
         if self.endpoint:
-            LOGGER.debug("%s -> %s via %s", entry.url, self.url, self.endpoint)
+            LOGGER.debug("%s -> %s via %s %s", entry.url, self.href,
+                         self.endpoint.__class__.__name__, self.endpoint.endpoint)
             try:
-                await self.endpoint.send(config, entry.url, self.url)
+                await self.endpoint.send(config, entry.url, self.href)
             except Exception as err:  # pylint:disable=broad-except
                 LOGGER.exception("Ping %s: got %s: %s",
-                                 self.url, err.__class__.__name__, err)
+                                 self.resolved, err.__class__.__name__, err)
 
 
 @async_lru.alru_cache(maxsize=1000)
-async def get_target(config, url):
-    """ Given a URL, get the webmention endpoint """
+async def get_target(config, url, href):
+    """ Given a resolved URL and original link HREF, get the webmention endpoint """
 
     previous = config.cache.get(
         'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
@@ -176,7 +180,7 @@ async def get_target(config, url):
     if request.cached:
         return previous
 
-    current = Target(request)
+    current = Target(request, href)
 
     if config.cache:
         config.cache.set('target', url, current)

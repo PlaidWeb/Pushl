@@ -97,6 +97,7 @@ class Pushl:
 
     async def process_entry(self, url, add_domain=False, send_mentions=True):
         """ process an entry """
+        # pylint:disable=too-many-branches
 
         if add_domain:
             self._feed_domains.add(utils.get_domain(url))
@@ -128,10 +129,11 @@ class Pushl:
                     links = links ^ invert
 
                 if links:
-                    LOGGER.info("%s: Mention targets: %s", url, ' '.join(links))
-                for link in links:
-                    pending.append(("send webmention {} -> {}".format(url, link),
-                                    self.send_webmention(entry, link)))
+                    LOGGER.info("%s: Mention targets: %s", url, ' '.join(
+                        resolved for (resolved, _) in links))
+                for (resolved, href) in links:
+                    pending.append(("send webmention {} -> {} ({})".format(url, resolved, href),
+                                    self.send_webmention(entry, resolved, href)))
 
             if self.args.recurse:
                 for feed in entry.feeds:
@@ -155,23 +157,23 @@ class Pushl:
             LOGGER.debug("+++DONE: process_entry(%s): %d subtasks",
                          url, len(pending))
 
-    async def send_webmention(self, entry, url):
+    async def send_webmention(self, entry, resolved, href):
         """ send a webmention from an entry to a URL """
 
-        if (entry.url, url) in self._processed_mentions:
+        if (entry.url, href) in self._processed_mentions:
             LOGGER.debug(
-                "Skipping already processed mention %s -> %s", entry.url, url)
+                "Skipping already processed mention %s -> %s", entry.url, href)
             return
-        self._processed_mentions.add((entry.url, url))
+        self._processed_mentions.add((entry.url, href))
 
-        LOGGER.debug("++WAIT: webmentions.get_target %s", url)
-        target = await webmentions.get_target(self, url)
-        LOGGER.debug("++DONE: webmentions.get_target %s", url)
+        LOGGER.debug("++WAIT: webmentions.get_target %s", resolved)
+        target = await webmentions.get_target(self, resolved, href)
+        LOGGER.debug("++DONE: webmentions.get_target %s", resolved)
 
         if target:
-            LOGGER.debug("++WAIT: Sending webmention %s -> %s", entry.url, url)
+            LOGGER.debug("++WAIT: Sending webmention %s -> %s", entry.url, href)
             await target.send(self, entry)
-            LOGGER.debug("++DONE: Sending webmention %s -> %s", entry.url, url)
+            LOGGER.debug("++DONE: Sending webmention %s -> %s", entry.url, href)
 
     async def send_websub(self, url, hub):
         """ send a websub notification """
