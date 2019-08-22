@@ -46,7 +46,7 @@ def parse_args(*args):
                         default=100)
     parser.add_argument('--max-per-host', type=int, dest='max_per_host',
                         help='Maximum number of connections per host',
-                        default=0)
+                        default=8)
 
     parser.add_argument('--rel-whitelist', '-w', dest='rel_whitelist', type=str,
                         help="Comma-separated list of link RELs to whitelist"
