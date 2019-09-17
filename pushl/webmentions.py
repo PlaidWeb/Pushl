@@ -13,7 +13,7 @@ from lxml import etree
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class Endpoint(ABC):
@@ -177,8 +177,10 @@ class Target:
 async def get_target(config, url, href):
     """ Given a resolved URL and original link HREF, get the webmention endpoint """
 
+    key = str((url, href))
+
     previous = config.cache.get(
-        'target', url, schema_version=SCHEMA_VERSION) if config.cache else None
+        'target', key, schema_version=SCHEMA_VERSION) if config.cache else None
 
     headers = previous.caching if previous else None
 
@@ -192,6 +194,6 @@ async def get_target(config, url, href):
     current = Target(request, href)
 
     if config.cache:
-        config.cache.set('target', url, current)
+        config.cache.set('target', key, current)
 
     return current
