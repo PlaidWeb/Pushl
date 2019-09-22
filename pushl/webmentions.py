@@ -200,14 +200,14 @@ async def get_target(config, url):
 
     request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
-        return previous
+        return previous, request.status if request else None
 
     if request.cached:
-        return previous
+        return previous, previous.status
 
     current = Target(request)
 
     if config.cache:
         config.cache.set('target', url, current)
 
-    return current
+    return current, request.status

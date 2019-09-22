@@ -169,8 +169,13 @@ class Pushl:
         self._processed_mentions.add((entry.url, target))
 
         LOGGER.debug("++WAIT: webmentions.get_target %s", target)
-        target = await webmentions.get_target(self, target)
+        target, code = await webmentions.get_target(self, target)
         LOGGER.debug("++DONE: webmentions.get_target %s", target)
+
+        if code and 400 <= code < 500:
+            # Resource is nonexistent or forbidden
+            LOGGER.warning("%s: link to %s generated client error %d",
+                           entry.url, href, code)
 
         if target:
             LOGGER.debug("++WAIT: Sending webmention %s -> %s",
