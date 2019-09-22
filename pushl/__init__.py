@@ -121,21 +121,21 @@ class Pushl:
                         url, send_mentions)
             if send_mentions:
                 # get the webmention targets
-                links = entry.get_targets(self)
+                targets = entry.get_targets(self)
                 if previous:
                     # Only bother with links that changed from the last time
-                    LOGGER.debug("targets before: %s", links)
+                    LOGGER.debug("targets before: %s", targets)
                     invert = previous.get_targets(self)
                     LOGGER.debug(
                         "%s: excluding previously-checked targets %s", url, invert)
-                    links = links ^ invert
+                    targets = targets ^ invert
 
-                if links:
+                if targets:
                     LOGGER.info("%s: Mention targets: %s", url, ' '.join(
-                        resolved for (resolved, _) in links))
-                for (resolved, href) in links:
-                    pending.append(("send webmention {} -> {} ({})".format(url, resolved, href),
-                                    self.send_webmention(entry, resolved, href)))
+                        target for (target, _) in targets))
+                for (target, href) in targets:
+                    pending.append(("send webmention {} -> {} ({})".format(url, target, href),
+                                    self.send_webmention(entry, target, href)))
 
             if self.args.recurse:
                 for feed in entry.feeds:
@@ -159,23 +159,23 @@ class Pushl:
             LOGGER.debug("+++DONE: process_entry(%s): %d subtasks",
                          url, len(pending))
 
-    async def send_webmention(self, entry, resolved, href):
+    async def send_webmention(self, entry, target, href):
         """ send a webmention from an entry to a URL """
 
-        if (entry.url, href) in self._processed_mentions:
+        if (entry.url, target) in self._processed_mentions:
             LOGGER.debug(
-                "Skipping already processed mention %s -> %s", entry.url, href)
+                "Skipping already processed mention %s -> %s", entry.url, target)
             return
-        self._processed_mentions.add((entry.url, href))
+        self._processed_mentions.add((entry.url, target))
 
-        LOGGER.debug("++WAIT: webmentions.get_target %s", resolved)
-        target = await webmentions.get_target(self, resolved, href)
-        LOGGER.debug("++DONE: webmentions.get_target %s", resolved)
+        LOGGER.debug("++WAIT: webmentions.get_target %s", target)
+        target = await webmentions.get_target(self, target)
+        LOGGER.debug("++DONE: webmentions.get_target %s", target)
 
         if target:
             LOGGER.debug("++WAIT: Sending webmention %s -> %s",
                          entry.url, href)
-            await target.send(self, entry)
+            await target.send(self, entry.url, href)
             LOGGER.debug("++DONE: Sending webmention %s -> %s",
                          entry.url, href)
 
