@@ -23,7 +23,7 @@ class Entry:
         md5 = hashlib.md5(text.encode('utf-8'))
         self.digest = md5.digest()
 
-        self.url = str(request.url)  # the canonical, final URL
+        self.url = str(request.url)  # the resolved URL
         self.status = request.status
         self.caching = caching.make_headers(request.headers)
 
@@ -35,20 +35,24 @@ class Entry:
             self._targets = []
             for node in articles:
                 self._targets += [link.attrs
-                                  for link in node.find_all('a')
+                                  for link in node.find_all('a', href=True)
                                   if 'href' in link.attrs]
 
             self.feeds = [urllib.parse.urljoin(self.url, link.attrs['href'])
-                          for link in soup.find_all('link')
+                          for link in soup.find_all('link', href=True)
                           if 'href' in link.attrs
                           and 'type' in link.attrs
                           and link.attrs['type'] in ('application/rss.xml',
                                                      'application/atom+xml')]
 
             self.hubs = [link.attrs['href']
-                         for link in soup.find_all('link', rel='hub')]
+                         for link in soup.find_all('link', rel='hub', href=True)]
             if 'hub' in request.links:
                 self.hubs.append(request.links['hub']['url'])
+
+            # Use the canonical URL if available
+            for link in soup.find_all('link', rel='canonical', href=True):
+                self.url = urllib.parse.urljoin(self.url, link.attrs['href'])
 
         else:
             self._targets = []
