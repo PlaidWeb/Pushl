@@ -192,10 +192,11 @@ class Pushl:
                             utils.retry_get(self, 'https://web.archive.org/save/' + dest)))
             self._processed_wayback.add(dest)
 
-        LOGGER.debug("+++WAIT: send_webmention(%s): %d subtasks", dest, len(pending))
-        LOGGER.debug("%s", [name for (name, _) in pending])
-        await asyncio.wait([task for (_, task) in pending])
-        LOGGER.debug("---DONE: send_webmention(%s): %d subtasks", dest, len(pending))
+        if pending:
+            LOGGER.debug("+++WAIT: send_webmention(%s): %d subtasks", dest, len(pending))
+            LOGGER.debug("%s", [name for (name, _) in pending])
+            await asyncio.wait([task for (_, task) in pending])
+            LOGGER.debug("---DONE: send_webmention(%s): %d subtasks", dest, len(pending))
 
     async def send_websub(self, url, hub):
         """ send a websub notification """
