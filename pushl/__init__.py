@@ -28,6 +28,8 @@ class Pushl:
 
         self._processed_websub = set()
 
+        self._processed_wayback = set()
+
         self.session = session
 
     async def process_feed(self, url, send_mentions=True):
@@ -159,30 +161,41 @@ class Pushl:
             LOGGER.debug("+++DONE: process_entry(%s): %d subtasks",
                          url, len(pending))
 
-    async def send_webmention(self, entry, target, href):
+    async def send_webmention(self, entry, dest, href):
         """ send a webmention from an entry to a URL """
 
-        if (entry.url, target) in self._processed_mentions:
+        if (entry.url, dest) in self._processed_mentions:
             LOGGER.debug(
-                "Skipping already processed mention %s -> %s", entry.url, target)
+                "Skipping already processed mention %s -> %s", entry.url, dest)
             return
-        self._processed_mentions.add((entry.url, target))
+        self._processed_mentions.add((entry.url, dest))
 
-        LOGGER.debug("++WAIT: webmentions.get_target %s", target)
-        target, code = await webmentions.get_target(self, target)
-        LOGGER.debug("++DONE: webmentions.get_target %s", target)
+        LOGGER.debug("++WAIT: webmentions.get_target %s", dest)
+        target, code, cached = await webmentions.get_target(self, dest)
+        LOGGER.debug("++DONE: webmentions.get_target %s", dest)
 
         if code and 400 <= code < 500:
             # Resource is nonexistent or forbidden
             LOGGER.warning("%s: link to %s generated client error %d",
                            entry.url, href, code)
 
+        pending = []
+
         if target:
-            LOGGER.debug("++WAIT: Sending webmention %s -> %s",
-                         entry.url, href)
-            await target.send(self, entry.url, href)
-            LOGGER.debug("++DONE: Sending webmention %s -> %s",
-                         entry.url, href)
+            pending.append(("webmention {}->{}".format(entry.url, href),
+                            target.send(self, entry.url, href)))
+
+        if (not cached
+                and self.args.wayback_machine
+                and dest not in self._processed_wayback):
+            pending.append(("wayback machine {}".format(dest),
+                            utils.retry_get(self, 'https://web.archive.org/save/' + dest)))
+            self._processed_wayback.add(dest)
+
+        LOGGER.debug("+++WAIT: send_webmention(%s): %d subtasks", dest, len(pending))
+        LOGGER.debug("%s", [name for (name, _) in pending])
+        await asyncio.wait([task for (_, task) in pending])
+        LOGGER.debug("---DONE: send_webmention(%s): %d subtasks", dest, len(pending))
 
     async def send_websub(self, url, hub):
         """ send a websub notification """

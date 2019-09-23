@@ -85,6 +85,15 @@ def parse_args(*args):
                          help="Do not recurse into other feeds")
     feature.set_defaults(recurse=False)
 
+    feature = parser.add_mutually_exclusive_group(required=False)
+    feature.add_argument('--wayback-machine', '-k',
+                         help="Request linked-to pages to be stored in the Wayback Machine",
+                         dest='wayback_machine', action='store_true')
+    feature.add_argument('--no-wayback-machine',
+                         help="Disable the Wayback Machine preservation request",
+                         dest='wayback_machine', action='store_false')
+    feature.set_defaults(wayback_machine=False)
+
     return parser.parse_args(*args)
 
 
