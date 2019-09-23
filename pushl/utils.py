@@ -8,30 +8,47 @@ import sys
 import urllib.parse
 
 import aiohttp
+from bs4 import BeautifulSoup
 
 LOGGER = logging.getLogger('utils')
 
 
-def guess_encoding(request):
+def decode_text(data, request):
     """ Try to guess the encoding of a request without going through the slow chardet process"""
-    ctype = request.headers.get('content-type')
+    ctype = request.headers.get('content-type', '')
+    encoding = None
     if not ctype:
         # we don't have a content-type, somehow, so...
         LOGGER.warning("%s: no content-type; headers are %s",
                        request.url, request.headers)
-        return 'utf-8'
 
-    # explicit declaration
-    match = re.search(r'charset=([^ ;]*)(;| |$)', ctype)
-    if match:
-        return match[1]
+    # try to derive it from the document
+    utf8 = data.decode('utf-8', 'ignore')
+    if 'html' in ctype:
+        soup = BeautifulSoup(utf8, 'html.parser')
+        meta = soup.find('meta', charset=True)
+        if meta:
+            encoding = meta.attrs['charset']
+        else:
+            meta = soup.find('meta', {'http-equiv': True, 'content': True})
+            if meta and meta.attrs['http-equiv'].lower() == 'content-type':
+                ctype = meta.attrs['content']
 
-    # html default
-    if ctype.startswith('text/html'):
-        return 'iso-8859-1'
+    # try to derive it from the content type
+    if not encoding and ctype:
+        match = re.search(r'charset=([^ ;]*)(;| |$)', ctype)
+        if match:
+            encoding = match[1]
 
-    # everything else's default
-    return 'utf-8'
+    # html default (or at least close enough)
+    if not encoding and ctype in ('text/html', 'text/plain'):
+        encoding = 'iso-8859-1'
+
+    if not encoding or encoding == 'utf-8':
+        # use the already-decoded utf-8 version
+        return utf8
+
+    return data.decode(encoding, 'ignore')
 
 
 def get_domain(url):
@@ -48,7 +65,7 @@ class RequestResult:
         self.status = request.status
         self.links = request.links
         if data:
-            self.text = data.decode(guess_encoding(request), 'ignore')
+            self.text = decode_text(data, request)
         else:
             self.text = ''
 
