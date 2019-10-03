@@ -94,6 +94,15 @@ def parse_args(*args):
                          dest='wayback_machine', action='store_false')
     feature.set_defaults(wayback_machine=False)
 
+    feature = parser.add_mutually_exclusive_group(required=False)
+    feature.add_argument('--self-pings',
+                         help="Allow entries to ping other entries on the same domain",
+                         dest='self_pings', action='store_true')
+    feature.add_argument('--no-self-pings',
+                         help="Don't allow entries to ping other entries on the same domain",
+                         dest='self_pings', action='store_false')
+    feature.set_defaults(self_pings=False)
+
     return parser.parse_args(*args)
 
 

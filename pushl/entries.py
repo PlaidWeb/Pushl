@@ -119,7 +119,7 @@ class Entry:
 
         return {(urllib.parse.urljoin(self.url, href), href)
                 for href in hrefs
-                if self._domain_differs(href)}
+                if config.args.self_pings or self._domain_differs(href)}
 
 
 async def get_entry(config, url):
