@@ -9,7 +9,7 @@ import feedparser
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Feed:
@@ -25,7 +25,17 @@ class Feed:
         self.caching = caching.make_headers(request.headers)
         self.feed = feedparser.parse(text)
         self.status = request.status
-        self.links = self.feed.feed.links
+        self.links = collections.defaultdict(list)
+
+        try:
+            for link in self.feed.feed.links:
+                href = link.get('href')
+                rel = link.get('rel')
+
+                if rel and href:
+                    self.links[rel].append(href)
+        except (AttributeError, KeyError):
+            pass
 
         self.schema = SCHEMA_VERSION
 
@@ -68,6 +78,17 @@ class Feed:
         return ('current' in rels and
                 ('self' not in rels or
                  rels['self'] != rels['current']))
+
+    @property
+    def canonical(self):
+        """ Return the canonical URL for this feed """
+        if self.links['canonical']:
+            return self.links['canonical'][0]
+
+        if self.links['self']:
+            return self.links['self'][0]
+
+        return self.url
 
 
 async def get_feed(config, url):

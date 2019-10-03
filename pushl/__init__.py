@@ -46,8 +46,7 @@ class Pushl:
         feed, previous, updated = await feeds.get_feed(self, url)
         LOGGER.debug("++DONE: %s: get feed", url)
 
-        if updated:
-            LOGGER.info("Feed %s has been updated", url)
+        LOGGER.log(updated and logging.INFO, "Feed %s has been updated", url)
 
         if not feed:
             return
@@ -56,39 +55,20 @@ class Pushl:
 
         pending = []
 
-        try:
-            hubs = []
-            self_ref = feed.url
+        # RFC5005
+        if self.args.archive:
+            for rel in ('prev-archive', 'next-archive', 'prev-page', 'next-page'):
+                for link in feed.links[rel]:
+                    LOGGER.debug('%s: %s', rel, link)
+                    pending.append(("process feed " + link,
+                                    self.process_feed(link, send_mentions)))
 
-            for link in feed.links:
-                href = link.get('href')
-                if not href:
-                    continue
-
-                if link.get('rel') == 'self':
-                    LOGGER.debug("Found self-link %s", link)
-                    self_ref = href
-
-                #  RFC5005 archive links
-                if self.args.archive and link.get('rel') in ('prev-archive',
-                                                             'next-archive',
-                                                             'prev-page',
-                                                             'next-page'):
-                    LOGGER.debug("Found archive link %s", link)
-                    pending.append(
-                        ("process feed " + href, self.process_feed(href, send_mentions)))
-
-                # WebSub notification
-                if updated and link.get('rel') == 'hub' and not feed.is_archive:
-                    LOGGER.debug("Found WebSub hub %s", link)
-                    hubs.append(href)
-
-            for hub in hubs:
-                pending.append(
-                    ("update websub " + hub, self.send_websub(self_ref, hub)))
-
-        except (AttributeError, KeyError):
-            LOGGER.debug("Feed %s has no links", url)
+        # WebSub
+        if updated and not feed.is_archive:
+            for hub in feed.links['hub']:
+                LOGGER.debug("Found hub %s", hub)
+                pending.append(("update websub " + hub,
+                                self.send_websub(feed.canonical, hub)))
 
         # Schedule the entries
         items = set(feed.entry_links)
