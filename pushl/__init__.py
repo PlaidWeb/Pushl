@@ -57,10 +57,17 @@ class Pushl:
         pending = []
 
         try:
+            hubs = []
+            self_ref = feed.url
+
             for link in feed.links:
-                href = link['href']
+                href = link.get('href')
                 if not href:
                     continue
+
+                if link.get('rel') == 'self':
+                    LOGGER.debug("Found self-link %s", link)
+                    self_ref = href
 
                 #  RFC5005 archive links
                 if self.args.archive and link.get('rel') in ('prev-archive',
@@ -74,8 +81,12 @@ class Pushl:
                 # WebSub notification
                 if updated and link.get('rel') == 'hub' and not feed.is_archive:
                     LOGGER.debug("Found WebSub hub %s", link)
-                    pending.append(
-                        ("update websub " + href, self.send_websub(feed.url, href)))
+                    hubs.append(href)
+
+            for hub in hubs:
+                pending.append(
+                    ("update websub " + hub, self.send_websub(self_ref, hub)))
+
         except (AttributeError, KeyError):
             LOGGER.debug("Feed %s has no links", url)
 
