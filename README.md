@@ -86,11 +86,22 @@ If your feed implements [RFC 5005](https://tools.ietf.org/html/rfc5005), the `-a
 
 ### Dual-protocol/multi-domain websites
 
-If you have a website which has multiple URLs that can access it (for example, http+https, or multiple domain names), you generally only want WebMentions to be sent from the canonical URL. You can configure this in Pushl by having the secondary feeds be WebSub-only, using the `-s/--websub-only` flag:
+If you have a website which has multiple URLs that can access it (for example, http+https, or multiple domain names), you generally only want WebMentions to be sent from the canonical URL. The best solution is to use `<link rel="canonical">` to declare which one is the real one, and Pushl will use that in sending the mentions; so, for example:
+
 
 ```bash
-pushl -r https://example.com/feed -s http://example.com/feed http://alt-domain.example.com/feed
+pushl -r https://example.com/feed http://example.com/feed http://alt-domain.example.com/feed
 ```
+
+As long as both `http://example.com` and `http://alt-domain.example.com` declare the `https://example.com` version as canonical, only the webmentions from `https://example.com` will be sent.
+
+If, for some reason, you can't use `rel="canonical"` you can use the `-s/--websub-only` flag on Pushl to have it only send WebSub notifications for that feed; for example:
+
+```bash
+pushl -r https://example.com/feed -s https://other.example.com/feed
+```
+
+will send both Webmention and WebSub for `https://example.com` but only WebSub for `https://other.example.com`.
 
 ## Automated updates
 
@@ -112,31 +123,40 @@ pipenv install pushl
 and created this script as `$HOME/beesbuzz.biz/pushl.sh`:
 
 ```bash
-#!/bin/sh
+#!/bin/bash
 
 cd $(dirname "$0")
-LOG=$(date +%Y%m%d.log)
+LOG=logs/pushl-$(date +%Y%m%d.log)
 
+# redirect log output
 if [ "$1" == "quiet" ] ; then
     exec >> $LOG 2>&1
 else
     exec 2>&1 | tee -a $LOG
 fi
 
+# add timestamp
 date
-flock -n run.lock $HOME/.local/bin/pipenv run pushl -rvvc $HOME/var/pushl \
-    https://beesbuzz.biz/feed \
-    http://publ.beesbuzz.biz/feed \
+
+# run pushl
+flock -n $HOME/var/pushl/run.lock $HOME/.local/bin/pipenv run pushl -rvvkc $HOME/var/pushl \
+    https://beesbuzz.biz/feed\?push=1 \
+    http://publ.beesbuzz.biz/feed\?push=1 \
     https://tumblr.beesbuzz.biz/rss \
-    -s http://beesbuzz.biz/feed
+    https://novembeat.com/feed\?push=1 \
+    http://beesbuzz.biz/feed\?push=1 \
+    -s http://beesbuzz.biz/feed-summary https://beesbuzz.biz/feed-summary
+
+# while we're at it, clean out the log and pushl cache directory
+find logs $HOME/var/pushl -type f -mtime +30 -print -delete
 ```
 
 Then I have a cron job:
 
 ```crontab
-*/5 * * * * $HOME/beesbuzz.biz/pushl.sh quiet
+*/15 * * * * $HOME/beesbuzz.biz/pushl.sh quiet
 ```
 
-which runs it every 5 minutes.
+which runs it every 15 minutes.
 
-I also have a [git deployment hook](http://publ.beesbuzz.biz/441) for my website, and its final step (after restarting `gunicorn`) is to run `pushl.sh`, in case a maximum latency of 5 minutes just isn't fast enough.
+I also have a [git deployment hook](http://publ.beesbuzz.biz/441) for my website, and its final step (after restarting `gunicorn`) is to run `pushl.sh`, in case a maximum latency of 15 minutes just isn't fast enough.
