@@ -141,8 +141,7 @@ class Pushl:
     async def process_entry_mentions(self, url: str,
                                      entry: entries.Entry,
                                      previous: typing.Optional[entries.Entry]):
-        """ Process an entry's webmentions """
-        source = entry.url
+        """ Process the outgoing pings for an entry """
 
         # get the webmention targets
         targets = entry.get_targets(self)
@@ -154,7 +153,6 @@ class Pushl:
                 LOGGER.debug("%s: Entry changed URLs from %s to %s; re-sending old pings to %s",
                              url, previous.url, entry.url, prior)
                 targets = targets | prior
-                source = previous.url
             else:
                 LOGGER.debug(
                     "%s: excluding previously-checked targets %s", url, prior)
@@ -166,8 +164,8 @@ class Pushl:
 
         pending = []
         for (target, href) in targets:
-            pending.append(("send webmention {} -> {} ({})".format(source, target, href),
-                            self.send_webmention(source, target, href)))
+            pending.append(("send webmention {} -> {} ({})".format(url, target, href),
+                            self.send_webmention(url, target, href)))
 
         await self._run_pending(pending, 'process_entry_mentions(%s)' % url)
 
