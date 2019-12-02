@@ -156,8 +156,9 @@ class Pushl:
             LOGGER.debug("targets before: %s", targets)
             prior = previous.get_targets(self)
             if previous.url != entry.url:
-                LOGGER.debug("%s: Entry changed URLs from %s to %s; re-sending old pings to %s",
-                             url, previous.url, entry.url, prior)
+                LOGGER.info("%s: Entry changed URLs from %s to %s; re-sending old pings %s",
+                            url, previous.url, entry.url,
+                            [target for (target, _) in prior])
                 send_pings(previous.url, prior)
             else:
                 LOGGER.debug(
@@ -165,8 +166,7 @@ class Pushl:
                 targets = targets ^ prior
 
         if targets:
-            LOGGER.info("%s: Mention targets: %s", url, ' '.join(
-                target for (target, _) in targets))
+            LOGGER.info("%s: Updating targets %s", url, [target for (target, _) in targets])
             send_pings(entry.url, targets)
 
         await self._run_pending(pending, 'process_entry_mentions(%s)' % url)
