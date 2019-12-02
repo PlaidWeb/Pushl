@@ -42,8 +42,11 @@ class Entry:
                           for link
                           in soup.find_all('link',
                                            href=True,
-                                           type={'application/rss+xml',
-                                                 'application/atom+xml'}
+                                           type={'text/xml',
+                                                 'application/rdf+xml',
+                                                 'application/rss+xml',
+                                                 'application/atom+xml',
+                                                 'application/xml'}
                                            )]
 
             self.hubs = [link.attrs['href']
