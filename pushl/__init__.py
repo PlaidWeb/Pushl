@@ -32,6 +32,16 @@ class Pushl:
 
         self.session = session
 
+    @staticmethod
+    async def _run_pending(pending, label):
+        if pending:
+            LOGGER.debug("+++WAIT: %s: %d subtasks",
+                         label, len(pending))
+            LOGGER.debug("%s", [name for (name, _) in pending])
+            await asyncio.wait([task for (_, task) in pending])
+            LOGGER.debug("+++DONE: %s: %d subtasks",
+                         label, len(pending))
+
     async def process_feed(self, url, send_mentions=True):
         """ process a feed """
 
@@ -78,19 +88,12 @@ class Pushl:
             pending.append(("process entry " + entry,
                             self.process_entry(entry, send_mentions=send_mentions)))
 
-        LOGGER.debug("--- finish process_feed %s %s", url, send_mentions)
+        await self._run_pending(pending, 'process_feed(%s)' % url)
 
-        if pending:
-            LOGGER.debug("+++WAIT: process_feed(%s): %d subtasks",
-                         url, len(pending))
-            LOGGER.debug("%s", [name for (name, _) in pending])
-            await asyncio.wait([task for (_, task) in pending])
-            LOGGER.debug("+++DONE: process_feed(%s): %d subtasks",
-                         url, len(pending))
+        LOGGER.debug("--- finish process_feed %s %s", url, send_mentions)
 
     async def process_entry(self, url, add_domain=False, send_mentions=True):
         """ process an entry """
-        # pylint:disable=too-many-branches
 
         if add_domain:
             self._feed_domains.add(utils.get_domain(url))
@@ -113,22 +116,8 @@ class Pushl:
             LOGGER.info("Processing entry: %s send_mentions=%s",
                         url, send_mentions)
             if send_mentions:
-                # get the webmention targets
-                targets = entry.get_targets(self)
-                if previous:
-                    # Only bother with links that changed from the last time
-                    LOGGER.debug("targets before: %s", targets)
-                    invert = previous.get_targets(self)
-                    LOGGER.debug(
-                        "%s: excluding previously-checked targets %s", url, invert)
-                    targets = targets ^ invert
-
-                if targets:
-                    LOGGER.info("%s: Mention targets: %s", url, ' '.join(
-                        target for (target, _) in targets))
-                for (target, href) in targets:
-                    pending.append(("send webmention {} -> {} ({})".format(url, target, href),
-                                    self.send_webmention(entry, target, href)))
+                pending.append(("process entry mentions {}".format(url),
+                                self.process_entry_mentions(url, entry, previous)))
 
             if self.args.recurse:
                 for feed in entry.feeds:
@@ -144,22 +133,47 @@ class Pushl:
 
         LOGGER.debug("--- finish process_entry %s", url)
 
-        if pending:
-            LOGGER.debug("+++WAIT: process_entry(%s): %d subtasks",
-                         url, len(pending))
-            LOGGER.debug("%s", [name for (name, _) in pending])
-            await asyncio.wait([task for (_, task) in pending])
-            LOGGER.debug("+++DONE: process_entry(%s): %d subtasks",
-                         url, len(pending))
+        await self._run_pending(pending, 'process_entry(%s)' % url)
 
-    async def send_webmention(self, entry, dest, href):
+    async def process_entry_mentions(self, url, entry, previous):
+        """ Process an entry's webmentions """
+        source = entry.url
+
+        # get the webmention targets
+        targets = entry.get_targets(self)
+        if previous:
+            # Only bother with links that changed from the last time
+            LOGGER.debug("targets before: %s", targets)
+            prior = previous.get_targets(self)
+            if previous.url != entry.url:
+                LOGGER.debug("%s: Entry changed URLs from %s to %s; re-sending old pings to %s",
+                             url, previous.url, entry.url, prior)
+                targets = targets | prior
+                source = previous.url
+            else:
+                LOGGER.debug(
+                    "%s: excluding previously-checked targets %s", url, prior)
+                targets = targets ^ prior
+
+        if targets:
+            LOGGER.info("%s: Mention targets: %s", url, ' '.join(
+                target for (target, _) in targets))
+
+        pending = []
+        for (target, href) in targets:
+            pending.append(("send webmention {} -> {} ({})".format(source, target, href),
+                            self.send_webmention(source, target, href)))
+
+        await self._run_pending(pending, 'process_entry_mentions(%s)' % url)
+
+    async def send_webmention(self, entry_url, dest, href):
         """ send a webmention from an entry to a URL """
 
-        if (entry.url, dest) in self._processed_mentions:
+        if (entry_url, dest) in self._processed_mentions:
             LOGGER.debug(
-                "Skipping already processed mention %s -> %s", entry.url, dest)
+                "Skipping already processed mention %s -> %s", entry_url, dest)
             return
-        self._processed_mentions.add((entry.url, dest))
+        self._processed_mentions.add((entry_url, dest))
 
         LOGGER.debug("++WAIT: webmentions.get_target %s", dest)
         target, code, cached = await webmentions.get_target(self, dest)
@@ -168,13 +182,13 @@ class Pushl:
         if code and 400 <= code < 500:
             # Resource is nonexistent or forbidden
             LOGGER.warning("%s: link to %s generated client error %d",
-                           entry.url, href, code)
+                           entry_url, href, code)
 
         pending = []
 
         if target:
-            pending.append(("webmention {}->{}".format(entry.url, href),
-                            target.send(self, entry.url, href)))
+            pending.append(("webmention {}->{}".format(entry_url, href),
+                            target.send(self, entry_url, href)))
 
         if (not cached
                 and self.args.wayback_machine
@@ -183,11 +197,7 @@ class Pushl:
                             utils.retry_get(self, 'https://web.archive.org/save/' + dest)))
             self._processed_wayback.add(dest)
 
-        if pending:
-            LOGGER.debug("+++WAIT: send_webmention(%s): %d subtasks", dest, len(pending))
-            LOGGER.debug("%s", [name for (name, _) in pending])
-            await asyncio.wait([task for (_, task) in pending])
-            LOGGER.debug("---DONE: send_webmention(%s): %d subtasks", dest, len(pending))
+        await self._run_pending(pending, 'send_webmention(%s,%s)' % (entry_url, dest))
 
     async def send_websub(self, url, hub):
         """ send a websub notification """
