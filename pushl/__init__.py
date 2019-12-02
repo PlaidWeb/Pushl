@@ -2,6 +2,9 @@
 
 import asyncio
 import logging
+import typing
+
+import aiohttp
 
 from . import caching, entries, feeds, utils, webmentions, websub
 
@@ -12,7 +15,7 @@ class Pushl:
     """ Top-level process controller """
     # pylint:disable=too-many-instance-attributes
 
-    def __init__(self, session, args):
+    def __init__(self, session: aiohttp.ClientSession, args):
         """ Set up the process worker """
         self.args = args
         self.cache = caching.Cache(args.cache_dir) if args.cache_dir else None
@@ -21,19 +24,19 @@ class Pushl:
         self.rel_blacklist = args.rel_blacklist.split(
             ',') if args.rel_blacklist else None
 
-        self._processed_feeds = set()
-        self._processed_entries = set()
-        self._processed_mentions = set()
-        self._feed_domains = set()
+        self._processed_feeds: typing.Set[typing.Tuple[str, bool]] = set()
+        self._processed_entries: typing.Set[typing.Tuple[str, bool]] = set()
+        self._processed_mentions: typing.Set[typing.Tuple[str, str]] = set()
+        self._feed_domains: typing.Set[str] = set()
 
-        self._processed_websub = set()
+        self._processed_websub: typing.Set[typing.Tuple[str, str]] = set()
 
-        self._processed_wayback = set()
+        self._processed_wayback: typing.Set[str] = set()
 
         self.session = session
 
     @staticmethod
-    async def _run_pending(pending, label):
+    async def _run_pending(pending, label: str):
         if pending:
             LOGGER.debug("+++WAIT: %s: %d subtasks",
                          label, len(pending))
@@ -42,7 +45,7 @@ class Pushl:
             LOGGER.debug("+++DONE: %s: %d subtasks",
                          label, len(pending))
 
-    async def process_feed(self, url, send_mentions=True):
+    async def process_feed(self, url: str, send_mentions: bool = True):
         """ process a feed """
 
         self._feed_domains.add(utils.get_domain(url))
@@ -92,7 +95,7 @@ class Pushl:
 
         LOGGER.debug("--- finish process_feed %s %s", url, send_mentions)
 
-    async def process_entry(self, url, add_domain=False, send_mentions=True):
+    async def process_entry(self, url: str, add_domain: bool = False, send_mentions: bool = True):
         """ process an entry """
 
         if add_domain:
@@ -112,7 +115,7 @@ class Pushl:
 
         pending = []
 
-        if updated:
+        if updated and entry:
             LOGGER.info("Processing entry: %s send_mentions=%s",
                         url, send_mentions)
             if send_mentions:
@@ -135,7 +138,9 @@ class Pushl:
 
         await self._run_pending(pending, 'process_entry(%s)' % url)
 
-    async def process_entry_mentions(self, url, entry, previous):
+    async def process_entry_mentions(self, url: str,
+                                     entry: entries.Entry,
+                                     previous: typing.Optional[entries.Entry]):
         """ Process an entry's webmentions """
         source = entry.url
 
@@ -166,7 +171,7 @@ class Pushl:
 
         await self._run_pending(pending, 'process_entry_mentions(%s)' % url)
 
-    async def send_webmention(self, entry_url, dest, href):
+    async def send_webmention(self, entry_url: str, dest: str, href: str):
         """ send a webmention from an entry to a URL """
 
         if (entry_url, dest) in self._processed_mentions:
@@ -199,7 +204,7 @@ class Pushl:
 
         await self._run_pending(pending, 'send_webmention(%s,%s)' % (entry_url, dest))
 
-    async def send_websub(self, url, hub):
+    async def send_websub(self, url: str, hub: str):
         """ send a websub notification """
 
         if (url, hub) in self._processed_websub:

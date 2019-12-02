@@ -5,6 +5,7 @@ import logging
 import re
 import ssl
 import sys
+import typing
 import urllib.parse
 
 import aiohttp
@@ -13,7 +14,7 @@ from bs4 import BeautifulSoup
 LOGGER = logging.getLogger('utils')
 
 
-def decode_text(data, request):
+def decode_text(data: bytes, request: aiohttp.ClientResponse) -> str:
     """ Try to guess the encoding of a request without going through the slow chardet process"""
     ctype = request.headers.get('content-type', '')
     encoding = None
@@ -51,7 +52,7 @@ def decode_text(data, request):
     return data.decode(encoding, 'ignore')
 
 
-def get_domain(url):
+def get_domain(url: str) -> str:
     """ Get the domain part of a URL """
     return urllib.parse.urlparse(url).netloc.lower()
 
@@ -59,7 +60,7 @@ def get_domain(url):
 class RequestResult:
     """ The results we need from a request """
 
-    def __init__(self, request, data):
+    def __init__(self, request: aiohttp.ClientResponse, data: typing.Optional[bytes]):
         self.url = request.url
         self.headers = request.headers
         self.status = request.status
@@ -70,22 +71,24 @@ class RequestResult:
             self.text = ''
 
     @property
-    def success(self):
+    def success(self) -> bool:
         """ Was this request successful? """
         return 200 <= self.status < 300 or self.cached or self.gone
 
     @property
-    def gone(self):
+    def gone(self) -> bool:
         """ Is this request for a deleted resource? """
         return self.status == 410
 
     @property
-    def cached(self):
+    def cached(self) -> bool:
         """ Is this request for a cache hit? """
         return self.status == 304
 
 
-async def _retry_do(func, url, *args, **kwargs):
+async def _retry_do(func: typing.Callable,
+                    url: str, *args,
+                    **kwargs) -> typing.Optional[RequestResult]:
     errors = set()
     for retries in range(5):
         try:

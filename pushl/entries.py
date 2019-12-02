@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import typing
 import urllib.parse
 
 from bs4 import BeautifulSoup
@@ -16,7 +17,7 @@ class Entry:
     """ Encapsulates a scanned entry """
     # pylint:disable=too-few-public-methods,too-many-instance-attributes
 
-    def __init__(self, request):
+    def __init__(self, request: utils.RequestResult):
         """ Build an Entry from a completed request """
         text = request.text
 
@@ -32,18 +33,18 @@ class Entry:
             soup = BeautifulSoup(text, 'html.parser')
             articles = self._get_articles(soup)
 
-            self._targets = []
+            self._targets: typing.List[typing.Dict] = []
             for node in articles:
                 self._targets += [link.attrs
-                                  for link in node.find_all('a', href=True)
-                                  if 'href' in link.attrs]
+                                  for link in node.find_all('a', href=True)]
 
             self.feeds = [urllib.parse.urljoin(self.url, link.attrs['href'])
-                          for link in soup.find_all('link', href=True)
-                          if 'href' in link.attrs
-                          and 'type' in link.attrs
-                          and link.attrs['type'] in ('application/rss.xml',
-                                                     'application/atom+xml')]
+                          for link
+                          in soup.find_all('link',
+                                           href=True,
+                                           type={'application/rss+xml',
+                                                 'application/atom+xml'}
+                                           )]
 
             self.hubs = [link.attrs['href']
                          for link in soup.find_all('link', rel='hub', href=True)]
@@ -62,14 +63,16 @@ class Entry:
         self.schema = SCHEMA_VERSION
 
     @staticmethod
-    def _get_articles(soup):
+    def _get_articles(soup: BeautifulSoup) -> typing.List[BeautifulSoup]:
         return (soup.find_all(class_="h-entry")
                 or soup.find_all("article")
                 or soup.find_all(class_="entry")
                 or [soup])
 
     @staticmethod
-    def _check_rel(attrs, rel_whitelist, rel_blacklist):
+    def _check_rel(attrs: typing.Dict,
+                   rel_whitelist: typing.Optional[typing.List[str]],
+                   rel_blacklist: typing.Optional[typing.List[str]]) -> bool:
         """ Check a link's relations against the whitelist or blacklist.
 
         First, this will reject based on blacklist.
@@ -98,7 +101,7 @@ class Entry:
 
         return True
 
-    def _domain_differs(self, href):
+    def _domain_differs(self, href: str) -> bool:
         """ Check that a link is not on the same domain as the source URL """
         target = utils.get_domain(href)
         if not target:
@@ -107,7 +110,7 @@ class Entry:
         origin = utils.get_domain(self.url)
         return target != origin
 
-    def get_targets(self, config):
+    def get_targets(self, config) -> typing.Set[typing.Tuple[str, str]]:
         """ Given an Entry object, return all of the outgoing links, as a tuple
         of (resolved_url, original_href). """
 
@@ -122,7 +125,9 @@ class Entry:
                 if config.args.self_pings or self._domain_differs(href)}
 
 
-async def get_entry(config, url):
+async def get_entry(config, url: str) -> typing.Tuple[typing.Optional[Entry],
+                                                      typing.Optional[Entry],
+                                                      bool]:
     """ Given an entry URL, return the entry
 
     Arguments:

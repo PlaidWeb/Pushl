@@ -9,6 +9,7 @@ flake8 = "*"
 twine = "*"
 isort = "*"
 autopep8 = "*"
+mypy = "*"
 
 [packages]
 pushl = {editable = true,path = "."}

@@ -2,7 +2,9 @@
 
 import collections
 import hashlib
+import itertools
 import logging
+import typing
 
 import feedparser
 
@@ -15,7 +17,7 @@ SCHEMA_VERSION = 3
 class Feed:
     """ Encapsulates stuff on feeds """
 
-    def __init__(self, request):
+    def __init__(self, request: utils.RequestResult):
         """ Given a request object and retrieved text, parse out the feed """
         text = request.text
         md5 = hashlib.md5(text.encode('utf-8'))
@@ -25,7 +27,7 @@ class Feed:
         self.caching = caching.make_headers(request.headers)
         self.feed = feedparser.parse(text)
         self.status = request.status
-        self.links = collections.defaultdict(list)
+        self.links: typing.DefaultDict[str, typing.Set[str]] = collections.defaultdict(set)
 
         try:
             for link in self.feed.feed.links:
@@ -33,14 +35,14 @@ class Feed:
                 rel = link.get('rel')
 
                 if rel and href:
-                    self.links[rel].append(href)
+                    self.links[rel].add(href)
         except (AttributeError, KeyError):
             pass
 
         self.schema = SCHEMA_VERSION
 
     @property
-    def archive_namespace(self):
+    def archive_namespace(self) -> typing.Optional[str]:
         """ Returns the known namespace of the RFC5005 extension, if any """
         try:
             for ns_prefix, url in self.feed.namespaces.items():
@@ -51,14 +53,12 @@ class Feed:
         return None
 
     @property
-    def entry_links(self):
-        """ Given a parsed feed, return the links to its entries, including ones
-        which disappeared (as a quick-and-dirty way to support deletions)
-        """
+    def entry_links(self) -> typing.Set[str]:
+        """ Given a parsed feed, return the links to its entries """
         return {entry['link'] for entry in self.feed.entries if entry and entry.get('link')}
 
     @property
-    def is_archive(self):
+    def is_archive(self) -> bool:
         """ Given a parsed feed, returns True if this is an archive feed """
 
         ns_prefix = self.archive_namespace
@@ -70,28 +70,23 @@ class Feed:
                 # This is declared to be the current view
                 return False
 
-        # Either we don't have the namespace, or the view wasn't declared.
-        rels = collections.defaultdict(list)
-        for link in self.feed.feed.links:
-            rels[link.rel].append(link.href)
-
-        return ('current' in rels and
-                ('self' not in rels or
-                 rels['self'] != rels['current']))
+        # Either we don't have the namespace, or the view wasn't declared, so
+        # return whether there's a rel=current that doesn't match rel=self
+        return (bool(self.links['current']) and
+                self.links['self'] != self.links['current'])
 
     @property
-    def canonical(self):
+    def canonical(self) -> str:
         """ Return the canonical URL for this feed """
-        if self.links['canonical']:
-            return self.links['canonical'][0]
-
-        if self.links['self']:
-            return self.links['self'][0]
+        for href in itertools.chain(self.links['canonical'], self.links['self']):
+            return href
 
         return self.url
 
 
-async def get_feed(config, url):
+async def get_feed(config, url: str) -> typing.Tuple[typing.Optional[Feed],
+                                                     typing.Optional[Feed],
+                                                     bool]:
     """ Get a feed
 
     Arguments:

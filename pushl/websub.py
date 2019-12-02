@@ -7,7 +7,7 @@ from . import utils
 LOGGER = logging.getLogger(__name__)
 
 
-async def send(config, url, hub):
+async def send(config, url: str, hub: str):
     """ Update WebSub hub to know about this URL """
     try:
         LOGGER.debug("WebSub: Notifying %s of %s", hub, url)

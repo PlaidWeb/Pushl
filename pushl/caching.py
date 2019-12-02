@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 import sys
+import typing
 
 from slugify import slugify
 
@@ -14,10 +15,10 @@ LOGGER = logging.getLogger(__name__)
 class Cache:
     """ A very simple file-based object cache """
 
-    def __init__(self, cache_dir):
+    def __init__(self, cache_dir: str):
         self.cache_dir = cache_dir
 
-    def _get_cache_file(self, prefix, url):
+    def _get_cache_file(self, prefix: str, url: str):
         if not self.cache_dir:
             return None
 
@@ -26,7 +27,7 @@ class Cache:
 
         return os.path.join(self.cache_dir, prefix, filename)
 
-    def get(self, prefix, url, schema_version=None):
+    def get(self, prefix: str, url: str, schema_version=None):
         """ Get the cached object """
         if not self.cache_dir:
             return None
@@ -50,7 +51,7 @@ class Cache:
 
         return None
 
-    def set(self, prefix, url, obj):
+    def set(self, prefix: str, url: str, obj):
         """ Add an object into the cache """
         if not self.cache_dir:
             return
@@ -66,7 +67,7 @@ class Cache:
             pickle.dump(obj, file)
 
 
-def make_headers(headers):
+def make_headers(headers: typing.Dict) -> typing.Dict[str, str]:
     """ Make the cache control headers based on a previous request's
     response headers
     """

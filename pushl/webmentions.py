@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import re
+import typing
 import urllib.parse
 from abc import ABC, abstractmethod
 
@@ -20,11 +21,11 @@ class Endpoint(ABC):
     """ Base class for target endpoints """
     # pylint:disable=too-few-public-methods
 
-    def __init__(self, endpoint):
+    def __init__(self, endpoint: str):
         self.endpoint = endpoint
 
     @abstractmethod
-    async def send(self, config, source, destination):
+    async def send(self, config, source: str, destination: str) -> bool:
         """ Send the mention via this protocol """
 
 
@@ -126,7 +127,7 @@ class Target:
         else:
             self.endpoint = None
 
-    def _get_endpoint(self, request, text):
+    def _get_endpoint(self, request: utils.RequestResult, text: str) -> typing.Optional[Endpoint]:
         def join(url):
             return urllib.parse.urljoin(str(request.url), str(url))
 
@@ -163,7 +164,7 @@ class Target:
 
         return None
 
-    async def send(self, config, source, href):
+    async def send(self, config, source: str, href: str):
         """ Send a mention from source to href via this target's endpoint """
         if self.endpoint:
             LOGGER.debug("%s: %s->%s via %s [%s]",
@@ -180,7 +181,7 @@ class Target:
             # If the resolved URL is different than the (de-fragmented) HREF URL,
             # show a warning since that can affect the validity of webmentions
             match = re.match('([^#]*)(#(.*))?', href)
-            if self.canonical != match.group(1):
+            if match and self.canonical != match.group(1):
                 LOGGER.warning("""\
 For the best compatibility, URL %s (referenced from %s) should be updated to %s\
 """,
@@ -190,7 +191,7 @@ For the best compatibility, URL %s (referenced from %s) should be updated to %s\
 
 
 @async_lru.alru_cache(maxsize=1000)
-async def get_target(config, url):
+async def get_target(config, url: str) -> typing.Tuple[typing.Optional[Target], int, bool]:
     """ Given a resolved URL, get the webmention endpoint """
 
     previous = config.cache.get(
