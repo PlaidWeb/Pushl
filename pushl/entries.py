@@ -41,6 +41,7 @@ class Entry:
             self.feeds = [urllib.parse.urljoin(self.url, link.attrs['href'])
                           for link
                           in soup.find_all('link',
+                                           rel="alternate",
                                            href=True,
                                            type={'text/xml',
                                                  'application/rdf+xml',
@@ -48,6 +49,9 @@ class Entry:
                                                  'application/atom+xml',
                                                  'application/xml'}
                                            )]
+            self.feeds += [urllib.parse.urljoin(self.url, link.attrs['href'])
+                           for link
+                           in soup.find_all('link', rel="hub")]
 
             self.hubs = [link.attrs['href']
                          for link in soup.find_all('link', rel='hub', href=True)]

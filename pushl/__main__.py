@@ -103,6 +103,15 @@ def parse_args(*args):
                          dest='self_pings', action='store_false')
     feature.set_defaults(self_pings=False)
 
+    feature = parser.add_mutually_exclusive_group(required=False)
+    feature.add_argument('--dry-run', '-n',
+                         help="Only perform a dry run; don't send any pings",
+                         dest='dry_run', action='store_true')
+    feature.add_argument('--no-dry-run',
+                         help="Send pings normally",
+                         dest='dry_run', action='store_false')
+    feature.set_defaults(dry_run=False)
+
     return parser.parse_args(*args)
 
 
