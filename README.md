@@ -6,6 +6,9 @@ See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motiva
 
 ## Features
 
+* Supports any feed supported by [feedparser](https://github.com/kurtmckee/feedparser)
+    and [mf2py](https://github.com/microformats/mf2py) (RSS, Atom, HTML pages containing
+    `h-entry`, etc.)
 * Will send WebSub notifications for feeds which declare a WebSub hub
 * Will send WebMention notifications for entries discovered on those feeds or specified directly
 * Can perform autodiscovery of additional feeds on entry pages
@@ -15,7 +18,7 @@ See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motiva
 
 ## Site setup
 
-First, you'll want to have your Atom (or RSS) feed implement [the WebSub protocol](https://indieweb.org/WebSub). The short version is that you should have a `<link rel="hub" href="http://path/to/hub" />` in your feed's top-level element.
+If you want to support WebSub, have your feed implement [the WebSub protocol](https://indieweb.org/WebSub). The short version is that you should have a `<link rel="hub" href="http://path/to/hub" />` in your feed's top-level element.
 
 There are a number of WebSub hubs available; I use [Superfeedr](http://pubsubhubbub.superfeedr.com).
 
@@ -26,6 +29,12 @@ For [WebMentions](https://indieweb.org/Webmention), configure your site template
 * Anything with a `class` of `entry`
 
 For more information on how to configure your site templates, see the [microformats h-entry specification](http://microformats.org/wiki/h-entry).
+
+### mf2 feed notes
+
+If you're using an mf2 feed (i.e. an HTML-formatted page with `h-entry` declarations), only entries with a `u-url` property will be used for sending webmentions; further, Pushl will retrieve the page from that URL to ensure it has the full content. (This is to work around certain setups where the `h-feed` only shows summary text.)
+
+Also, there is technically no requirement for an HTML page to declare an `h-feed`; all entities marked up with `h-entry` will be consumed.
 
 ## Installation
 
@@ -78,7 +87,7 @@ Note that `-r` and `-e` in conjunction will also cause the feed declared on the 
 pushl -re http://example.com/blog/
 ```
 
-this will also send webmentions from the blog page itself which is probably *not* what you want to do.
+this will also send webmentions from the blog page itself which is probably *not* what you want to have happen.
 
 ### Backfilling old content
 

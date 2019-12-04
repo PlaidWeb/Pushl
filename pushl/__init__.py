@@ -202,6 +202,10 @@ class Pushl:
                             utils.retry_get(self, 'https://web.archive.org/save/' + dest)))
             self._processed_wayback.add(dest)
 
+        if self.args.dry_run:
+            LOGGER.info("DRY RUN: not sending ping %s -> %s", entry_url, dest)
+            return
+
         await self._run_pending(pending, 'send_webmention(%s,%s)' % (entry_url, dest))
 
     async def send_websub(self, url: str, hub: str):
@@ -212,5 +216,8 @@ class Pushl:
                 "Skipping already processed websub %s -> %s", url, hub)
             return
         self._processed_websub.add((url, hub))
+
+        if self.args.dry_run:
+            LOGGER.info("DRY RUN: not sending websub %s -> %s", url, hub)
 
         await websub.send(self, url, hub)

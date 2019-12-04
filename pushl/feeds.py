@@ -5,17 +5,20 @@ import hashlib
 import itertools
 import logging
 import typing
+import urllib.parse
 
 import feedparser
+import mf2py
 
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class Feed:
     """ Encapsulates stuff on feeds """
+    # pylint:disable=too-many-instance-attributes
 
     def __init__(self, request: utils.RequestResult):
         """ Given a request object and retrieved text, parse out the feed """
@@ -25,12 +28,21 @@ class Feed:
 
         self.url = str(request.url)
         self.caching = caching.make_headers(request.headers)
+
         self.feed = feedparser.parse(text)
+        if 'bozo_exception' in self.feed:
+            # feedparser couldn't handle this, so maybe it's mf2
+            self.mf2 = mf2py.parse(text)
+        else:
+            self.mf2 = None
+
         self.status = request.status
         self.links: typing.DefaultDict[str, typing.Set[str]] = collections.defaultdict(set)
 
         try:
             for link in self.feed.feed.links:
+                # conveniently this also contains the rel links from HTML
+                # documents, so no need to handle the mf2 version (if any)
                 href = link.get('href')
                 rel = link.get('rel')
 
@@ -55,7 +67,23 @@ class Feed:
     @property
     def entry_links(self) -> typing.Set[str]:
         """ Given a parsed feed, return the links to its entries """
-        return {entry['link'] for entry in self.feed.entries if entry and entry.get('link')}
+        entries = {urllib.parse.urljoin(self.url, entry['link'])
+                   for entry in self.feed.entries
+                   if entry and entry.get('link')}
+
+        def consume_mf2(entries, items):
+            for item in items:
+                if ('type' in item and 'h-entry' in item['type']
+                        and 'properties' in item and 'url' in item['properties']):
+                    entries |= set(urllib.parse.urljoin(self.url, url)
+                                   for url in item['properties']['url'])
+                if 'children' in item:
+                    consume_mf2(entries, item['children'])
+
+        if self.mf2:
+            consume_mf2(entries, self.mf2['items'])
+
+        return entries
 
     @property
     def is_archive(self) -> bool:

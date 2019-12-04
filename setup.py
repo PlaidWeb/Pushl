@@ -57,12 +57,13 @@ setup(
     packages=['pushl'],
 
     install_requires=[
-        'feedparser',
-        'beautifulsoup4',
-        'awesome-slugify',
         'aiohttp',
+        'async_lru',
+        'awesome-slugify',
+        'beautifulsoup4',
+        'feedparser',
         'lxml',
-        'async_lru'
+        'mf2py',
     ],
 
     extras_require={
