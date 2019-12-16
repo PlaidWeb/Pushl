@@ -134,9 +134,9 @@ class Entry:
 
 async def get_entry(config,
                     url: str,
-                    cache_ns: str = 'entry') -> typing.Tuple[typing.Optional[Entry],
-                                                             typing.Optional[Entry],
-                                                             bool]:
+                    cache_ns: str) -> typing.Tuple[typing.Optional[Entry],
+                                                   typing.Optional[Entry],
+                                                   bool]:
     """ Given an entry URL, return the entry
 
     Arguments:
@@ -151,6 +151,10 @@ async def get_entry(config,
         cache_ns, url,
         schema_version=SCHEMA_VERSION) if config.cache else None
 
+    LOGGER.debug("cache=%s previous=%s previous.caching=%s",
+                 config.cache,
+                 previous,
+                 previous.caching if previous else None)
     headers = previous.caching if previous else None
 
     LOGGER.debug("+++WAIT: request get %s %s", url, headers)
@@ -171,7 +175,7 @@ async def get_entry(config,
 
     # Content updated
     if config.cache:
-        config.cache.set('entry', url, current)
+        config.cache.set(cache_ns, url, current)
 
     return current, previous, (not previous
                                or previous.digest != current.digest

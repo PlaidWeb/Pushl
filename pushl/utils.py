@@ -62,7 +62,7 @@ class RequestResult:
 
     def __init__(self, request: aiohttp.ClientResponse, data: typing.Optional[bytes]):
         self.url = request.url
-        self.headers = request.headers
+        self.headers = request.headers.copy()
         self.status = request.status
         self.links = request.links
         if data:

@@ -35,6 +35,7 @@ class Cache:
         filename = self._get_cache_file(prefix, url)
 
         try:
+            LOGGER.debug("get %s %s -> %s", prefix, url, filename)
             with open(filename, 'rb') as file:
                 item = pickle.load(file)
             if schema_version and schema_version != item.schema:
@@ -44,6 +45,7 @@ class Cache:
                 return None
             return item
         except FileNotFoundError:
+            LOGGER.debug("Cache get %s %s [%s]: not found", prefix, url, filename)
             pass
         except Exception:  # pylint:disable=broad-except
             _, msg, _ = sys.exc_info()
@@ -57,6 +59,7 @@ class Cache:
             return
 
         filename = self._get_cache_file(prefix, url)
+        LOGGER.debug("set %s %s -> %s", prefix, url, filename)
 
         try:
             os.makedirs(os.path.join(self.cache_dir, prefix))

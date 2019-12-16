@@ -59,7 +59,8 @@ class Pushl:
         feed, previous, updated = await feeds.get_feed(self, url)
         LOGGER.debug("++DONE: %s: get feed", url)
 
-        LOGGER.log(updated and logging.INFO, "Feed %s has been updated", url)
+        LOGGER.log(updated and logging.INFO, "Feed %s has been updated %s -> %s", url,
+                   previous and previous.digest, feed and feed.digest)
 
         if not feed:
             return
@@ -118,8 +119,10 @@ class Pushl:
         pending = []
 
         if updated and entry:
-            LOGGER.info("Processing entry: %s send_mentions=%s",
-                        url, send_mentions)
+            LOGGER.info("Processing entry: %s send_mentions=%s %s -> %s",
+                        url, send_mentions,
+                        previous and previous.digest,
+                        entry and entry.digest)
             if send_mentions:
                 pending.append(("process entry mentions {}".format(url),
                                 self.process_entry_mentions(url, entry, previous)))
