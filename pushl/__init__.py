@@ -107,7 +107,9 @@ class Pushl:
         self._processed_entries.add((url, send_mentions))
 
         LOGGER.debug("++WAIT: get entry %s", url)
-        entry, previous, updated = await entries.get_entry(self, url)
+        entry, previous, updated = await entries.get_entry(
+            self, url,
+            'entries' if send_mentions else 'entries_websub')
         LOGGER.debug("++DONE: get entry %s entry=%s previous=%s updated=%s", url,
                      bool(entry), bool(previous), updated)
 

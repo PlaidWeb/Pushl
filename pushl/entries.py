@@ -132,25 +132,31 @@ class Entry:
                 if config.args.self_pings or self._domain_differs(href)}
 
 
-async def get_entry(config, url: str) -> typing.Tuple[typing.Optional[Entry],
-                                                      typing.Optional[Entry],
-                                                      bool]:
+async def get_entry(config,
+                    url: str,
+                    cache_ns: str = 'entry') -> typing.Tuple[typing.Optional[Entry],
+                                                             typing.Optional[Entry],
+                                                             bool]:
     """ Given an entry URL, return the entry
 
     Arguments:
 
     config -- the configuration
     url -- the URL of the entry
+    cache_ns -- the cache namespace to use
 
     Returns: 3-tuple of (current, previous, updated) """
 
     previous = config.cache.get(
-        'entry', url,
+        cache_ns, url,
         schema_version=SCHEMA_VERSION) if config.cache else None
 
     headers = previous.caching if previous else None
 
+    LOGGER.debug("+++WAIT: request get %s %s", url, headers)
     request = await utils.retry_get(config, url, headers=headers)
+    LOGGER.debug("---WAIT: request get %s", url)
+
     if not request or not request.success:
         LOGGER.error("Could not get entry %s: %d", url,
                      request.status if request else -1)

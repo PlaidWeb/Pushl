@@ -75,6 +75,7 @@ class Feed:
             for item in items:
                 if ('type' in item and 'h-entry' in item['type']
                         and 'properties' in item and 'url' in item['properties']):
+                    print(self.url, item['properties'])
                     entries |= set(urllib.parse.urljoin(self.url, url)
                                    for url in item['properties']['url'])
                 if 'children' in item:
@@ -132,7 +133,7 @@ async def get_feed(config, url: str) -> typing.Tuple[typing.Optional[Feed],
 
     headers = previous.caching if previous else None
 
-    LOGGER.debug("++WAIT: request get %s", url)
+    LOGGER.debug("++WAIT: request get %s %s)", url, headers)
     request = await utils.retry_get(config, url, headers=headers)
     LOGGER.debug("++DONE: request get %s", url)
     if not request or not request.success:
