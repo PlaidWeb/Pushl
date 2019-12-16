@@ -60,7 +60,7 @@ class Pushl:
         LOGGER.debug("++DONE: %s: get feed", url)
 
         LOGGER.log(updated and logging.INFO, "Feed %s has been updated %s -> %s", url,
-                   previous and previous.digest, feed and feed.digest)
+                   previous and previous.digest.hex(), feed and feed.digest.hex())
 
         if not feed:
             return
@@ -121,8 +121,8 @@ class Pushl:
         if updated and entry:
             LOGGER.info("Processing entry: %s send_mentions=%s %s -> %s",
                         url, send_mentions,
-                        previous and previous.digest,
-                        entry and entry.digest)
+                        previous and previous.digest.hex(),
+                        entry and entry.digest.hex())
             if send_mentions:
                 pending.append(("process entry mentions {}".format(url),
                                 self.process_entry_mentions(url, entry, previous)))
