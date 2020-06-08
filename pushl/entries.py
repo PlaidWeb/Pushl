@@ -78,32 +78,32 @@ class Entry:
 
     @staticmethod
     def _check_rel(attrs: typing.Dict,
-                   rel_whitelist: typing.Optional[typing.List[str]],
-                   rel_blacklist: typing.Optional[typing.List[str]]) -> bool:
-        """ Check a link's relations against the whitelist or blacklist.
+                   rel_include: typing.Optional[typing.List[str]],
+                   rel_exclude: typing.Optional[typing.List[str]]) -> bool:
+        """ Check a link's relations against the include or exclude.
 
-        First, this will reject based on blacklist.
+        First, this will reject based on exclude.
 
-        Next, if there is a whitelist, there must be at least one rel that matches.
-        To explicitly allow links without a rel you can add None to the whitelist
+        Next, if there is a include, there must be at least one rel that matches.
+        To explicitly allow links without a rel you can add None to the include
         (e.g. ['in-reply-to',None])
         """
 
         rels = attrs.get('rel', [None])
 
-        if rel_blacklist:
-            # Never return True for a link whose rel appears in the blacklist
+        if rel_exclude:
+            # Never return True for a link whose rel appears in the exclusion list
             for rel in rels:
-                if rel in rel_blacklist:
+                if rel in rel_exclude:
                     return False
 
-        if rel_whitelist:
-            # If there is a whitelist for rels, only return true for a rel that
+        if rel_include:
+            # If there is a inclusion list for rels, only return true for a rel that
             # appears in it
             for rel in rels:
-                if rel in rel_whitelist:
+                if rel in rel_include:
                     return True
-            # If there is a whitelist and we don't match, then reject
+            # If there is a include and we don't match, then reject
             return False
 
         return True
@@ -124,8 +124,8 @@ class Entry:
         hrefs = [attrs['href']
                  for attrs in self._targets
                  if 'href' in attrs and self._check_rel(attrs,
-                                                        config.rel_whitelist,
-                                                        config.rel_blacklist)]
+                                                        config.rel_include,
+                                                        config.rel_exclude)]
 
         return {(urllib.parse.urljoin(self.url, href), href)
                 for href in hrefs

@@ -48,11 +48,11 @@ def parse_args(*args):
                         help='Maximum number of connections per host',
                         default=8)
 
-    parser.add_argument('--rel-whitelist', '-w', dest='rel_whitelist', type=str,
-                        help="Comma-separated list of link RELs to whitelist"
+    parser.add_argument('--rel-include', dest='rel_include', type=str,
+                        help="Comma-separated list of link RELs to include"
                         + " for sending webmentions")
-    parser.add_argument('--rel-blacklist', '-b', dest='rel_blacklist', type=str,
-                        help="Comma-separated list of link RELs to blacklist"
+    parser.add_argument('--rel-exclude', dest='rel_exclude', type=str,
+                        help="Comma-separated list of link RELs to exclude"
                         + " from sending webmentions",
                         default="nofollow")
 

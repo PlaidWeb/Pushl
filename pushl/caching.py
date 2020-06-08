@@ -46,7 +46,6 @@ class Cache:
             return item
         except FileNotFoundError:
             LOGGER.debug("Cache get %s %s [%s]: not found", prefix, url, filename)
-            pass
         except Exception:  # pylint:disable=broad-except
             _, msg, _ = sys.exc_info()
             LOGGER.warning("Cache get %s %s failed: %s", prefix, url, msg)

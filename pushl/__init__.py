@@ -19,10 +19,10 @@ class Pushl:
         """ Set up the process worker """
         self.args = args
         self.cache = caching.Cache(args.cache_dir) if args.cache_dir else None
-        self.rel_whitelist = args.rel_whitelist.split(
-            ',') if args.rel_whitelist else None
-        self.rel_blacklist = args.rel_blacklist.split(
-            ',') if args.rel_blacklist else None
+        self.rel_include = args.rel_include.split(
+            ',') if args.rel_include else None
+        self.rel_exclude = args.rel_exclude.split(
+            ',') if args.rel_exclude else None
 
         self._processed_feeds: typing.Set[typing.Tuple[str, bool]] = set()
         self._processed_entries: typing.Set[typing.Tuple[str, bool]] = set()
@@ -167,7 +167,7 @@ class Pushl:
                 send_pings(previous.url, prior)
             else:
                 LOGGER.debug(
-                    "%s: excluding previously-checked targets %s", url, prior)
+                    "%s: excluding previously-checked targets %s", url, targets & prior)
                 targets = targets ^ prior
 
         if targets:
