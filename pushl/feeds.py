@@ -67,9 +67,14 @@ class Feed:
     @property
     def entry_links(self) -> typing.Set[str]:
         """ Given a parsed feed, return the links to its entries """
-        entries = {urllib.parse.urljoin(self.url, entry['link'])
-                   for entry in self.feed.entries
-                   if entry and entry.get('link')}
+        entries: typing.Set[str] = set()
+        for attr in ('link', 'comments'):
+            entries |= {
+                urllib.parse.urldefrag(
+                    urllib.parse.urljoin(self.url, entry[attr])).url
+                for entry in self.feed.entries
+                if entry and entry.get(attr)
+            }
 
         def consume_mf2(entries, items):
             for item in items:
