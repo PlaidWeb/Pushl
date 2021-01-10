@@ -12,6 +12,8 @@ LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
 
 LOGGER = logging.getLogger("pushl.main")
 
+DEFAULT_USERAGENT = f"Pushl/{__version__.__version__}; +https://github.com/PlaidWeb/pushl"
+
 
 def parse_args(*args):
     """ Parse the arguments for the command """
@@ -60,7 +62,8 @@ def parse_args(*args):
                         help="Maximum time (in seconds) to spend on this", default=1800)
 
     parser.add_argument('--user-agent', dest='user_agent', type=str,
-                        help="User-agent string to send", default=__version__.USER_AGENT)
+                        help="User-agent string to send",
+                        default=DEFAULT_USERAGENT)
 
     feature = parser.add_mutually_exclusive_group(required=False)
     feature.add_argument('--keepalive', dest='keepalive', action='store_true',
@@ -158,11 +161,11 @@ async def _run(args):
 
         if tasks:
             _, timed_out = await asyncio.wait(tasks, timeout=args.max_time)
-        if timed_out:
-            LOGGER.warning("Done. %d tasks did not complete within %d seconds",
-                           len(timed_out), args.max_time)
-        else:
-            LOGGER.info("Completed all tasks")
+            if timed_out:
+                LOGGER.warning("Done. %d tasks did not complete within %d seconds",
+                               len(timed_out), args.max_time)
+            else:
+                LOGGER.info("Completed all tasks")
 
 
 if __name__ == "__main__":
