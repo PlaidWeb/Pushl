@@ -7,6 +7,7 @@ import pickle
 import sys
 import typing
 
+import multidict
 from slugify import slugify
 
 LOGGER = logging.getLogger(__name__)
@@ -45,7 +46,8 @@ class Cache:
                 return None
             return item
         except FileNotFoundError:
-            LOGGER.debug("Cache get %s %s [%s]: not found", prefix, url, filename)
+            LOGGER.debug(
+                "Cache get %s %s [%s]: not found", prefix, url, filename)
         except Exception:  # pylint:disable=broad-except
             _, msg, _ = sys.exc_info()
             LOGGER.warning("Cache get %s %s failed: %s", prefix, url, msg)
@@ -69,7 +71,7 @@ class Cache:
             pickle.dump(obj, file)
 
 
-def make_headers(headers: typing.Dict) -> typing.Dict[str, str]:
+def make_headers(headers: multidict.CIMultiDict) -> typing.Dict[str, str]:
     """ Make the cache control headers based on a previous request's
     response headers
     """

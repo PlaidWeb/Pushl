@@ -171,7 +171,8 @@ class Pushl:
                 targets = targets ^ prior
 
         if targets:
-            LOGGER.info("%s: Updating targets %s", url, [target for (target, _) in targets])
+            LOGGER.info("%s: Updating targets %s", url, [
+                        target for (target, _) in targets])
             send_pings(entry.url, targets)
 
         await self._run_pending(pending, 'process_entry_mentions(%s)' % url)

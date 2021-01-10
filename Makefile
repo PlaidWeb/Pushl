@@ -1,21 +1,25 @@
-all: format mypy pylint flake8
+all: setup version format mypy pylint flake8
+
+.PHONY: setup
+setup:
+	poetry install
 
 .PHONY: format
 format:
-	pipenv run isort -y
-	pipenv run autopep8 -r --in-place .
+	poetry run isort .
+	poetry run autopep8 -r --in-place .
 
 .PHONY: pylint
 pylint:
-	pipenv run pylint pushl
+	poetry run pylint pushl
 
 .PHONY: flake8
 flake8:
-	pipenv run flake8
+	poetry run flake8
 
 .PHONY: mypy
 mypy:
-	pipenv run mypy -p pushl --ignore-missing-imports
+	poetry run mypy -p pushl --ignore-missing-imports
 
 .PHONY: preflight
 preflight:
@@ -33,15 +37,23 @@ preflight:
 		&& echo "Master differs from upstream" 1>&2 \
 		&& exit 1 || exit 0
 
+.PHONY: version
+version: pushl/__version__.py
+pushl/__version__.py: pyproject.toml
+	# Kind of a hacky way to get the version updated, until the poetry folks
+	# settle on a better approach
+	printf '""" version """\n__version__ = "%s"\n' \
+		`poetry version | cut -f2 -d\ ` > pushl/__version__.py
+
 .PHONY: build
-build: preflight pylint flake8
-	pipenv run python3 setup.py sdist
-	pipenv run python3 setup.py bdist_wheel
+build: version preflight pylint flake8
+	poetry build
 
 .PHONY: clean
 clean:
-	rm -rf build dist .mypy_cache
+	rm -rf dist .mypy_cache .pytest_cache .coverage
+	find . -name __pycache__ -print0 | xargs -0 rm -r
 
 .PHONY: upload
-upload: clean build
-	pipenv run twine upload dist/*
+upload: clean test build
+	poetry publish

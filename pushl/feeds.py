@@ -37,7 +37,8 @@ class Feed:
             self.mf2 = None
 
         self.status = request.status
-        self.links: typing.DefaultDict[str, typing.Set[str]] = collections.defaultdict(set)
+        self.links: typing.DefaultDict[str,
+                                       typing.Set[str]] = collections.defaultdict(set)
 
         try:
             for link in self.feed.feed.links:

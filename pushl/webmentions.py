@@ -133,7 +133,7 @@ class Target:
 
         # only attempt to parse the page if it's HTML or XML
         ctype = request.headers.get('content-type')
-        if 'html' in ctype or 'xml' in ctype:
+        if ctype and ('html' in ctype or 'xml' in ctype):
             soup = BeautifulSoup(text, 'html.parser')
         else:
             soup = None
@@ -142,7 +142,8 @@ class Target:
         if soup:
             for link in soup.find_all('link', rel='canonical', href=True):
                 self.canonical = join(link.attrs['href'])
-                LOGGER.debug('%s: got canonical URL %s', request.url, self.canonical)
+                LOGGER.debug('%s: got canonical URL %s',
+                             request.url, self.canonical)
 
         # Response headers always take priority over page links
         for rel, link in request.links.items():
