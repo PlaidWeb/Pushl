@@ -54,6 +54,10 @@ clean:
 	rm -rf dist .mypy_cache .pytest_cache .coverage
 	find . -name __pycache__ -print0 | xargs -0 rm -r
 
+.PHONY: test
+test:
+	echo "Please implement some tests someday"
+
 .PHONY: upload
 upload: clean test build
 	poetry publish
