@@ -71,7 +71,8 @@ class Cache:
             try:
                 pickle.dump(obj, file)
             except ValueError:
-                LOGGER.exception("Error pickling %s: filename=%s file=%s obj=%s", obj, filename, file)
+                LOGGER.exception("Error pickling %s: filename=%s file=%s",
+                                 obj, filename, file)
 
 
 def make_headers(headers: multidict.CIMultiDict) -> typing.Dict[str, str]:

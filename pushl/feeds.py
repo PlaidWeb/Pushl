@@ -41,7 +41,7 @@ class Feed:
         if not self.entry_links:
             # feedparser couldn't find any entries, so maybe it's an mf2 document
             LOGGER.debug("%s: Found no entries, retrying as mf2", self.url)
-            self._consume_mf2(mf2py.parse(text).get('items',[]), self.entry_links)
+            self._consume_mf2(mf2py.parse(text).get('items', []), self.entry_links)
 
         LOGGER.debug("%s: Found %d entries", self.url, len(self.entry_links))
 
@@ -95,9 +95,9 @@ class Feed:
 
     def _consume_mf2(self, items, entries: typing.Set[str]):
         """ Given a parsed mf2 feed, return the links to its entries """
-        for idx,item in enumerate(items):
-            if ('h-entry' in item.get('type',[]) and
-                'properties' in item and 'url' in item['properties']):
+        for item in items:
+            if ('h-entry' in item.get('type', []) and
+                    'properties' in item and 'url' in item['properties']):
                 for url in item['properties']['url']:
                     entries.add(urllib.parse.urljoin(self.url, url))
             if 'children' in item:

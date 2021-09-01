@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pushl"
-version = "0.3.1"
+version = "0.3.2"
 description = "A conduit for pushing changes in a feed to the rest of the IndieWeb"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
