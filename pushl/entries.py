@@ -20,9 +20,7 @@ class Entry:
     def __init__(self, request: utils.RequestResult):
         """ Build an Entry from a completed request """
         text = request.text
-
-        md5 = hashlib.md5(text.encode('utf-8'))
-        self.digest = md5.digest()
+        self.digest = hashlib.md5(text.encode('utf-8')).digest()
 
         self.url = str(request.url)  # the resolved URL
         self.status = request.status
