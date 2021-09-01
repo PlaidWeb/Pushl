@@ -13,102 +13,95 @@ import mf2py
 from . import caching, utils
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class Feed:
     """ Encapsulates stuff on feeds """
-    # pylint:disable=too-many-instance-attributes
+    # pylint:disable=too-many-instance-attributes,too-few-public-methods
 
     def __init__(self, request: utils.RequestResult):
         """ Given a request object and retrieved text, parse out the feed """
         text = request.text
-        md5 = hashlib.md5(text.encode('utf-8'))
-        self.digest = md5.digest()
+        self.digest = hashlib.md5(text.encode('utf-8')).digest()
 
         self.url = str(request.url)
         self.caching = caching.make_headers(request.headers)
 
-        self.feed = feedparser.parse(text)
-        if 'bozo_exception' in self.feed:
-            # feedparser couldn't handle this, so maybe it's mf2
-            self.mf2 = mf2py.parse(text)
-        else:
-            self.mf2 = None
+        self.is_archive = None
 
-        self.status = request.status
-        self.links: typing.DefaultDict[str,
-                                       typing.Set[str]] = collections.defaultdict(set)
+        feed = feedparser.parse(text)
+        self.entry_links, self.links = self._consume_feed(feed)
+
+        if 'bozo' in feed:
+            LOGGER.warning("Feed %s: got error '%s' on line %d", self.url,
+                           feed.bozo_exception.getMessage(),
+                           feed.bozo_exception.getLineNumber())
+
+        if not self.entry_links:
+            # feedparser couldn't find any entries, so maybe it's an mf2 document
+            LOGGER.debug("%s: Found no entries, retrying as mf2", self.url)
+            self._consume_mf2(mf2py.parse(text).get('items',[]), self.entry_links)
+
+        LOGGER.debug("%s: Found %d entries", self.url, len(self.entry_links))
 
         try:
-            for link in self.feed.feed.links:
+            for ns_prefix, url in feed.namespaces.items():
+                if url == 'http://purl.org/syndication/history/1.0':
+                    if ns_prefix + '_archive' in feed.feed:
+                        self.is_archive = True
+                        break
+                    if ns_prefix + '_current' in feed.feed:
+                        self.is_archive = False
+                        break
+        except AttributeError:
+            pass
+
+        if self.is_archive is None:
+            # We haven't found an archive namespace prefix, so see if there's
+            # a 'current' which mismatches 'self' (if any)
+            self.is_archive = ('current' in self.links and
+                               self.links.get('self') != self.links['current'])
+
+        self.status = request.status
+        self.schema = SCHEMA_VERSION
+
+    def _consume_feed(self, feed) -> typing.Tuple[typing.Set[str],
+                                                  typing.Dict[str, typing.Set[str]]]:
+        """ Given a parsed feed, return the links to its entries and the
+        rel-links for the feed """
+        entries: typing.Set[str] = set()
+        for attr in ('link', 'comments'):
+            entries |= {
+                urllib.parse.urldefrag(
+                    urllib.parse.urljoin(self.url, entry[attr])).url
+                for entry in feed['entries']
+                if entry and entry.get(attr)
+            }
+
+        feed_links: typing.DefaultDict[str,
+                                       typing.Set[str]] = collections.defaultdict(set)
+        if 'feed' in feed and 'links' in feed.feed:
+            for link in feed.feed.links:
                 # conveniently this also contains the rel links from HTML
                 # documents, so no need to handle the mf2 version (if any)
                 href = link.get('href')
                 rel = link.get('rel')
 
                 if rel and href:
-                    self.links[rel].add(href)
-        except (AttributeError, KeyError):
-            pass
+                    feed_links[rel].add(href)
 
-        self.schema = SCHEMA_VERSION
+        return entries, feed_links
 
-    @property
-    def archive_namespace(self) -> typing.Optional[str]:
-        """ Returns the known namespace of the RFC5005 extension, if any """
-        try:
-            for ns_prefix, url in self.feed.namespaces.items():
-                if url == 'http://purl.org/syndication/history/1.0':
-                    return ns_prefix
-        except AttributeError:
-            pass
-        return None
-
-    @property
-    def entry_links(self) -> typing.Set[str]:
-        """ Given a parsed feed, return the links to its entries """
-        entries: typing.Set[str] = set()
-        for attr in ('link', 'comments'):
-            entries |= {
-                urllib.parse.urldefrag(
-                    urllib.parse.urljoin(self.url, entry[attr])).url
-                for entry in self.feed.entries
-                if entry and entry.get(attr)
-            }
-
-        def consume_mf2(entries, items):
-            for item in items:
-                if ('type' in item and 'h-entry' in item['type']
-                        and 'properties' in item and 'url' in item['properties']):
-                    print(self.url, item['properties'])
-                    entries |= set(urllib.parse.urljoin(self.url, url)
-                                   for url in item['properties']['url'])
-                if 'children' in item:
-                    consume_mf2(entries, item['children'])
-
-        if self.mf2:
-            consume_mf2(entries, self.mf2['items'])
-
-        return entries
-
-    @property
-    def is_archive(self) -> bool:
-        """ Given a parsed feed, returns True if this is an archive feed """
-
-        ns_prefix = self.archive_namespace
-        if ns_prefix:
-            if ns_prefix + '_archive' in self.feed.feed:
-                # This is declared to be an archive view
-                return True
-            if ns_prefix + '_current' in self.feed.feed:
-                # This is declared to be the current view
-                return False
-
-        # Either we don't have the namespace, or the view wasn't declared, so
-        # return whether there's a rel=current that doesn't match rel=self
-        return (bool(self.links['current']) and
-                self.links['self'] != self.links['current'])
+    def _consume_mf2(self, items, entries: typing.Set[str]):
+        """ Given a parsed mf2 feed, return the links to its entries """
+        for idx,item in enumerate(items):
+            if ('h-entry' in item.get('type',[]) and
+                'properties' in item and 'url' in item['properties']):
+                for url in item['properties']['url']:
+                    entries.add(urllib.parse.urljoin(self.url, url))
+            if 'children' in item:
+                self._consume_mf2(item['children'], entries)
 
     @property
     def canonical(self) -> str:
