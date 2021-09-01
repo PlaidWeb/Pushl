@@ -33,7 +33,7 @@ class Feed:
         feed = feedparser.parse(text)
         self.entry_links, self.links = self._consume_feed(feed)
 
-        if 'bozo' in feed:
+        if 'bozo_exception' in feed:
             LOGGER.warning("Feed %s: got error '%s' on line %d", self.url,
                            feed.bozo_exception.getMessage(),
                            feed.bozo_exception.getLineNumber())
