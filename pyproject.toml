@@ -1,9 +1,12 @@
 [tool.poetry]
-name = "pushl"
+name = "Pushl"
 version = "0.3.2"
 description = "A conduit for pushing changes in a feed to the rest of the IndieWeb"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/PlaidWeb/Pushl"
+homepage = "https://plaidweb.site/"
 
 [tool.poetry.dependencies]
 python = "^3.6"
