@@ -92,7 +92,7 @@ class Pushl:
             pending.append(("process entry " + entry,
                             self.process_entry(entry, send_mentions=send_mentions)))
 
-        await self._run_pending(pending, 'process_feed(%s)' % url)
+        await self._run_pending(pending, f'process_feed({url})')
 
         LOGGER.debug("--- finish process_feed %s %s", url, send_mentions)
 
@@ -124,24 +124,24 @@ class Pushl:
                         previous and previous.digest.hex(),
                         entry and entry.digest.hex())
             if send_mentions:
-                pending.append(("process entry mentions {}".format(url),
+                pending.append((f"process entry mentions {url}",
                                 self.process_entry_mentions(url, entry, previous)))
 
             if self.args.recurse:
                 for feed in entry.feeds:
                     if utils.get_domain(feed) in self._feed_domains:
-                        pending.append(("process feed " + feed,
+                        pending.append((f"process feed {feed}",
                                         self.process_feed(feed, send_mentions=send_mentions)))
                     else:
                         LOGGER.info("Ignoring non-local feed %s", feed)
 
             for hub in entry.hubs:
-                pending.append(("send websub {} -> {}".format(url, hub),
+                pending.append((f"send websub {url} -> {hub}",
                                 self.send_websub(url, hub)))
 
         LOGGER.debug("--- finish process_entry %s", url)
 
-        await self._run_pending(pending, 'process_entry(%s)' % url)
+        await self._run_pending(pending, f'process_entry({url})')
 
     async def process_entry_mentions(self, url: str,
                                      entry: entries.Entry,
@@ -151,7 +151,7 @@ class Pushl:
 
         def send_pings(source, targets):
             for (target, href) in targets:
-                pending.append(("send webmention {} -> {} ({})".format(source, target, href),
+                pending.append((f"send webmention {source} -> {target} ({href})",
                                 self.send_webmention(source, target, href)))
 
         # get the webmention targets
@@ -175,7 +175,7 @@ class Pushl:
                         target for (target, _) in targets])
             send_pings(entry.url, targets)
 
-        await self._run_pending(pending, 'process_entry_mentions(%s)' % url)
+        await self._run_pending(pending, f'process_entry_mentions({url})')
 
     async def send_webmention(self, entry_url: str, dest: str, href: str):
         """ send a webmention from an entry to a URL """
@@ -198,13 +198,13 @@ class Pushl:
         pending = []
 
         if target:
-            pending.append(("webmention {}->{}".format(entry_url, href),
+            pending.append((f"webmention {entry_url}->{href}",
                             target.send(self, entry_url, href)))
 
         if (not cached
                 and self.args.wayback_machine
                 and dest not in self._processed_wayback):
-            pending.append(("wayback machine {}".format(dest),
+            pending.append((f"wayback machine {dest}",
                             utils.retry_get(self, 'https://web.archive.org/save/' + dest)))
             self._processed_wayback.add(dest)
 
@@ -212,7 +212,7 @@ class Pushl:
             LOGGER.info("DRY RUN: not sending ping %s -> %s", entry_url, dest)
             return
 
-        await self._run_pending(pending, 'send_webmention(%s,%s)' % (entry_url, dest))
+        await self._run_pending(pending, f'send_webmention({entry_url},{dest})')
 
     async def send_websub(self, url: str, hub: str):
         """ send a websub notification """

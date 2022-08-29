@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Pushl"
-version = "0.3.3"
+version = "0.3.4"
 description = "A conduit for pushing changes in a feed to the rest of the IndieWeb"
 authors = ["fluffy <fluffy@beesbuzz.biz>"]
 license = "MIT"
@@ -9,21 +9,22 @@ repository = "https://github.com/PlaidWeb/Pushl"
 homepage = "https://plaidweb.site/"
 
 [tool.poetry.dependencies]
-python = "^3.6"
-aiohttp = "^3.7.3"
-async_lru = "^1.0.2"
+python = "^3.7.2"
+aiohttp = "^3.8.1"
+async-lru = "^1.0.3"
 awesome-slugify = "^1.6.5"
-beautifulsoup4 = "^4.9.3"
-feedparser = "^6.0.2"
-lxml = "^4.6.2"
+beautifulsoup4 = "^4.11.1"
+feedparser = "^6.0.10"
+lxml = "^4.9.1"
 mf2py = "^1.1.2"
 
 [tool.poetry.dev-dependencies]
-pylint = "^2.6.0"
-flake8 = "^3.8.4"
-isort = "^5.6.4"
-autopep8 = "^1.5.4"
-mypy = "^0.790"
+autopep8 = "^1.7.0"
+flake8 = "^5.0.4"
+isort = "^5.10.1"
+mypy = "^0.971"
+pylint = "^2.15.0"
+types-python-slugify = "^6.1.0"
 
 [tool.poetry.scripts]
 pushl = 'pushl.__main__:main'
