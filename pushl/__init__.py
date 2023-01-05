@@ -41,7 +41,7 @@ class Pushl:
             LOGGER.debug("+++WAIT: %s: %d subtasks",
                          label, len(pending))
             LOGGER.debug("%s", [name for (name, _) in pending])
-            await asyncio.wait([task for (_, task) in pending])
+            await asyncio.wait([asyncio.create_task(coro) for (_, coro) in pending])
             LOGGER.debug("+++DONE: %s: %d subtasks",
                          label, len(pending))
 
@@ -67,7 +67,7 @@ class Pushl:
 
         LOGGER.debug("--- starting process_feed %s %s", url, send_mentions)
 
-        pending = []
+        pending: typing.List[typing.Tuple[str, typing.Coroutine]] = []
 
         # RFC5005
         if self.args.archive:
