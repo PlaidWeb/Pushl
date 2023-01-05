@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import logging
+import typing
 
 import aiohttp
 
@@ -149,18 +150,19 @@ async def _run(args):
                                      connector=connector) as session:
         worker = Pushl(session, args)
 
-        tasks = []
+        pending: typing.List[typing.Coroutine] = []
         for url in args.feeds or []:
-            tasks.append(worker.process_feed(url))
+            pending.append(worker.process_feed(url))
 
         for url in args.websub_only or []:
-            tasks.append(worker.process_feed(url, False))
+            pending.append(worker.process_feed(url, False))
 
         for url in args.entries or []:
-            tasks.append(worker.process_entry(url, add_domain=True))
+            pending.append(worker.process_entry(url, add_domain=True))
 
-        if tasks:
-            _, timed_out = await asyncio.wait(tasks, timeout=args.max_time)
+        if pending:
+            _, timed_out = await asyncio.wait([asyncio.create_task(coro) for coro in pending],
+                                              timeout=args.max_time)
             if timed_out:
                 LOGGER.warning("Done. %d tasks did not complete within %d seconds",
                                len(timed_out), args.max_time)
