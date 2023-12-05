@@ -9,8 +9,8 @@ repository = "https://github.com/PlaidWeb/Pushl"
 homepage = "https://plaidweb.site/"
 
 [tool.poetry.dependencies]
-python = "^3.7.2"
-aiohttp = "^3.8.1"
+python = "^3.8.0"
+aiohttp = "^3.9.1"
 async-lru = "^1.0.3"
 awesome-slugify = "^1.6.5"
 beautifulsoup4 = "^4.11.1"
