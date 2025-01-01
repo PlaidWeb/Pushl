@@ -129,7 +129,7 @@ def main():
     loop.run_until_complete(_run(args))
 
 
-async def _run(args):
+async def _run(args: argparse.Namespace):
     connector = aiohttp.TCPConnector(
         limit=args.max_connections,
         limit_per_host=args.max_per_host,

@@ -15,6 +15,11 @@ from . import caching, utils
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 5
 
+ACCEPT_HEADER = \
+    'application/atom+xml, application/rss+xml, application/rdf+xml;q=0.9,'\
+    'application/xml;q=0.8, text/xml;q=0.8, text/html;q=0.5,'\
+    '*/*;q=0.1'
+
 
 class Feed:
     """ Encapsulates stuff on feeds """
@@ -130,7 +135,9 @@ async def get_feed(config, url: str) -> typing.Tuple[typing.Optional[Feed],
         'feed', url, schema_version=SCHEMA_VERSION) if config.cache else None
     LOGGER.debug("++DONE: cache get feed %s", url)
 
-    headers = previous.caching if previous else None
+    headers = {'Accept': ACCEPT_HEADER}
+    if previous:
+        headers.update(previous.caching)
 
     LOGGER.debug("++WAIT: request get %s %s)", url, headers)
     request = await utils.retry_get(config, url, headers=headers)

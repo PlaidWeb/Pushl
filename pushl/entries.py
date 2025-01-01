@@ -12,6 +12,8 @@ from . import caching, utils
 LOGGER = logging.getLogger(__name__)
 SCHEMA_VERSION = 3
 
+ACCEPT_HEADER = 'text/html, application/xhtml+xml, */*;q=0.1'
+
 
 class Entry:
     """ Encapsulates a scanned entry """
@@ -153,7 +155,10 @@ async def get_entry(config,
                  config.cache,
                  previous,
                  previous.caching if previous else None)
-    headers = previous.caching if previous else None
+
+    headers = {'Accept': ACCEPT_HEADER}
+    if previous:
+        headers.update(previous.caching)
 
     LOGGER.debug("+++WAIT: request get %s %s", url, headers)
     request = await utils.retry_get(config, url, headers=headers)

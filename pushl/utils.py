@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import re
 import ssl
 import sys
 import typing
@@ -17,16 +16,17 @@ LOGGER = logging.getLogger('utils')
 def decode_text(data: bytes, request: aiohttp.ClientResponse) -> str:
     """ Try to guess the encoding of a request without going through the slow chardet process"""
     ctype = request.headers.get('content-type', '')
-    encoding = None
+    encoding = request.get_encoding()
+
     if not ctype:
         # we don't have a content-type, somehow, so...
         LOGGER.warning("%s: no content-type; headers are %s",
                        request.url, request.headers)
 
     # try to derive it from the document
-    utf8 = data.decode('utf-8', 'ignore')
+    text = data.decode(encoding or 'utf-8', 'ignore')
     if 'html' in ctype:
-        soup = BeautifulSoup(utf8, 'html.parser')
+        soup = BeautifulSoup(text, 'html.parser')
         meta = soup.find('meta', charset=True)
         if meta:
             encoding = meta.attrs['charset']
@@ -35,19 +35,13 @@ def decode_text(data: bytes, request: aiohttp.ClientResponse) -> str:
             if meta and meta.attrs['http-equiv'].lower() == 'content-type':
                 ctype = meta.attrs['content']
 
-    # try to derive it from the content type
-    if not encoding and ctype:
-        match = re.search(r'charset=([^ ;]*)(;| |$)', ctype)
-        if match:
-            encoding = match[1]
-
     # html default (or at least close enough)
     if not encoding and ctype in ('text/html', 'text/plain'):
         encoding = 'iso-8859-1'
 
-    if not encoding or encoding == 'utf-8':
-        # use the already-decoded utf-8 version
-        return utf8
+    if not encoding or encoding == request.get_encoding():
+        # use the already-decoded version
+        return text
 
     return data.decode(encoding, 'ignore')
 

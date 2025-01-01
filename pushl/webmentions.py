@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 
 import async_lru
 from bs4 import BeautifulSoup
-from lxml import etree
 
 from . import caching, utils
 
@@ -66,52 +65,6 @@ class WebmentionEndpoint(Endpoint):
         return False
 
 
-class PingbackEndpoint(Endpoint):
-    """ Implementation of the pingback protocol """
-    # pylint:disable=too-few-public-methods
-
-    async def send(self, config, source, destination):
-        LOGGER.info("Sending Pingback %s -> %s [%s]",
-                    source, destination, self.endpoint)
-
-        root = etree.Element('methodCall')
-        method = etree.Element('methodName')
-        method.text = 'pingback.ping'
-        root.append(method)
-
-        params = etree.Element('params')
-        root.append(params)
-
-        def _make_param(text):
-            param = etree.Element('param')
-            value = etree.Element('value')
-            leaf = etree.Element('string')
-            leaf.text = text
-            value.append(leaf)
-            param.append(value)
-            return param
-
-        params.append(_make_param(source))
-        params.append(_make_param(destination))
-
-        body = etree.tostring(root,
-                              xml_declaration=True)
-
-        request = await utils.retry_post(config,
-                                         self.endpoint,
-                                         data=body)
-        if not request:
-            LOGGER.info("%s: failed to send ping")
-            return False
-
-        if not request.success:
-            LOGGER.info("%s -> %s: Got status code %d",
-                        source, destination, request.status)
-            # someday I'll parse out the response but IDGAF
-
-        return request.success
-
-
 class Target:
     """ A target of a webmention """
     # pylint:disable=too-few-public-methods
@@ -150,18 +103,12 @@ class Target:
             if link.get('url') and 'webmention' in rel.split():
                 return WebmentionEndpoint(join(link.get('url')))
 
-        if 'X-Pingback' in request.headers:
-            return PingbackEndpoint(join(request.headers['X-Pingback']))
-
         # attempt to parse the document (if parseable)
         if not soup:
             return None
 
         for link in soup.find_all(('link', 'a'), rel='webmention', href=True):
             return WebmentionEndpoint(join(link.attrs['href']))
-
-        for link in soup.find_all(('link', 'a'), rel='pingback', href=True):
-            return PingbackEndpoint(join(link.attrs['href']))
 
         return None
 
@@ -202,10 +149,10 @@ async def get_target(config, url: str) -> typing.Tuple[typing.Optional[Target], 
 
     request = await utils.retry_get(config, url, headers=headers)
     if not request or not request.success:
-        return previous, request.status if request else None, False
+        return previous, request.status if request else 0, False
 
     if request.cached:
-        return previous, previous.status, True
+        return previous, previous.status if previous else 0, True
 
     current = Target(request)
 
