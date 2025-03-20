@@ -38,24 +38,13 @@ Also, there is technically no requirement for an HTML page to declare an `h-feed
 
 ## Installation
 
-You can install it using `pip` with e.g.:
+The easiest way to install pushl is via [pipx](https://pipx.pypa.io/stable/installation/), with e.g.
 
 ```bash
-pip3 install pushl
+pipx install pushl
 ```
 
-However, I recommend installing it in a virtual environment with e.g.:
-
-```bash
-virtualenv3 $HOME/pushl
-$HOME/pushl/bin/pip3 install pushl
-```
-
-and then putting a symlink to `$HOME/pushl/bin/pushl` to a directory in your $PATH, e.g.
-
-```bash
-ln -s $HOME/pushl/bin/pushl $HOME/bin/pushl
-```
+You can also install pushl as a dependency in whatever other Python virtual environment you're using (via [poetry](https://python-poetry.org/) or the like), and this will make the pushl wrapper script available in its path.
 
 ## Usage
 
