@@ -8,6 +8,7 @@ import typing
 import urllib.parse
 
 import aiohttp
+import bs4
 from bs4 import BeautifulSoup
 
 LOGGER = logging.getLogger('utils')
@@ -27,11 +28,12 @@ def decode_text(data: bytes, request: aiohttp.ClientResponse) -> str:
     text = data.decode(encoding or 'utf-8', 'ignore')
     if 'html' in ctype:
         soup = BeautifulSoup(text, 'html.parser')
-        meta = soup.find('meta', charset=True)
+        meta = typing.cast(bs4.element.Tag, soup.find('meta', charset=True))
         if meta:
             encoding = meta.attrs['charset']
         else:
-            meta = soup.find('meta', {'http-equiv': True, 'content': True})
+            meta = typing.cast(bs4.element.Tag,
+                               soup.find('meta', {'http-equiv': True, 'content': True}))
             if meta and meta.attrs['http-equiv'].lower() == 'content-type':
                 ctype = meta.attrs['content']
 
