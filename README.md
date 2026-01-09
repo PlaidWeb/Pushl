@@ -2,7 +2,7 @@
 
 A simple tool that parses content feeds and sends out appropriate push notifications (WebSub, webmention, etc.) when they change.
 
-See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motivation.
+See the blog post "[Some Thoughts on Webmention](http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention)" for the motivation.
 
 ## Features
 
@@ -11,10 +11,10 @@ See http://publ.beesbuzz.biz/blog/113-Some-thoughts-on-WebMention for the motiva
     `h-entry`, etc.)
 * Will send WebSub notifications for feeds which declare a WebSub hub
 * Will send WebMention notifications for entries discovered on those feeds or specified directly
+* Can request that the [Wayback Machine](https://web.archive.org/) do an archival of any pages you link to for posterity
 * Can perform autodiscovery of additional feeds on entry pages
 * Can do a full backfill on Atom feeds configured with [RFC 5005](https://tools.ietf.org/html/rfc5005)
 * When configured to use a cache directory, can detect entry deletions and updates to implement the webmention update and delete protocols (as well as saving some time and bandwidth)
-
 
 ## Site setup
 
@@ -101,6 +101,10 @@ pushl -r https://example.com/feed -s https://other.example.com/feed
 
 will send both Webmention and WebSub for `https://example.com` but only WebSub for `https://other.example.com`.
 
+### Wayback Machine archival
+
+If you set the `-k`/`--wayback-machine` parameter, then anything you link to will be queued up for archival on [the Wayback Machine](https://web.archive.org/), meaning that if the remote resource disappears, you have a better chance of being able to update your link to an archived snapshot later.
+
 ## Automated updates
 
 `pushl` can be run from a cron job, although it's a good idea to use `flock -n` to prevent multiple instances from stomping on each other. An example cron job for updating a site might look like:
@@ -111,11 +115,11 @@ will send both Webmention and WebSub for `https://example.com` but only WebSub f
 
 ### My setup
 
-In my setup, I have `pushl` installed in my website's pipenv:
+In my setup, I have `pushl` installed in my website's environment (which is managed by `poetry`):
 
 ```bash
 cd $HOME/beesbuzz.biz
-pipenv install pushl
+poetry install pushl
 ```
 
 and created this script as `$HOME/beesbuzz.biz/pushl.sh`:
@@ -137,7 +141,7 @@ fi
 date
 
 # run pushl
-flock -n $HOME/var/pushl/run.lock $HOME/.local/bin/pipenv run pushl -rvvkc $HOME/var/pushl \
+flock -n $HOME/var/pushl/run.lock $HOME/.local/bin/poetry run pushl -rvvkc $HOME/var/pushl \
     https://beesbuzz.biz/feed\?push=1 \
     http://publ.beesbuzz.biz/feed\?push=1 \
     https://tumblr.beesbuzz.biz/rss \
