@@ -10,22 +10,22 @@ homepage = "https://plaidweb.site/"
 
 [tool.poetry.dependencies]
 python = "^3.10.0"
-aiohttp = "^3.9.1"
-async-lru = "^1.0.3"
+aiohttp = "^3.13.3"
+async-lru = "^2.0.5"
 awesome-slugify = "^1.6.5"
-beautifulsoup4 = "^4.11.1"
-feedparser = "^6.0.10"
-mf2py = "^1.1.2"
+beautifulsoup4 = "^4.14.3"
+feedparser = "^6.0.12"
+mf2py = "^2.0.1"
 
 [tool.poetry.scripts]
 pushl = 'pushl.__main__:main'
 
 [tool.poetry.group.dev.dependencies]
-autopep8 = "^2.3.1"
-flake8 = "^7.1.1"
-isort = "^5.13.2"
+autopep8 = "^2.3.2"
+flake8 = "^7.3.0"
+isort = "^7.0.0"
 mypy = "^1.14.1"
-pylint = "^3.3.3"
+pylint = "^4.0.4"
 types-python-slugify = "^8.0.2.20240310"
 types-beautifulsoup4 = "^4.12.0.20250516"
 
