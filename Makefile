@@ -1,4 +1,4 @@
-all: setup version format mypy pylint flake8
+all: setup format mypy pylint flake8
 
 .PHONY: setup
 setup:
@@ -37,16 +37,8 @@ preflight:
 		&& echo "main differs from upstream" 1>&2 \
 		&& exit 1 || exit 0
 
-.PHONY: version
-version: pushl/__version__.py
-pushl/__version__.py: pyproject.toml
-	# Kind of a hacky way to get the version updated, until the poetry folks
-	# settle on a better approach
-	printf '""" version """\n__version__ = "%s"\n' \
-		`poetry version | cut -f2 -d\ ` > pushl/__version__.py
-
 .PHONY: build
-build: version preflight pylint flake8
+build: preflight pylint flake8
 	poetry build
 
 .PHONY: clean

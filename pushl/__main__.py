@@ -13,7 +13,7 @@ LOG_LEVELS = [logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
 
 LOGGER = logging.getLogger("pushl.main")
 
-DEFAULT_USERAGENT = f"Pushl/{__version__.__version__}; +https://github.com/PlaidWeb/pushl"
+DEFAULT_USERAGENT = f"Pushl/{__version__}; +https://github.com/PlaidWeb/pushl"
 
 
 def parse_args(*args):
@@ -22,7 +22,7 @@ def parse_args(*args):
         description="Send push notifications for a feed")
 
     parser.add_argument('--version', action='version',
-                        version="%(prog)s " + __version__.__version__)
+                        version="%(prog)s " + __version__)
 
     parser.add_argument('feeds', type=str, nargs='*', metavar='feed_url',
                         help='A URL for a feed to process')
@@ -125,7 +125,7 @@ def main():
     logging.basicConfig(level=LOG_LEVELS[min(
         args.verbosity, len(LOG_LEVELS) - 1)])
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(_run(args))
 
 

@@ -10,6 +10,13 @@ from . import caching, entries, feeds, utils, webmentions, websub
 
 LOGGER = logging.getLogger("pushl")
 
+try:
+    import importlib.metadata
+    __version__ = importlib.metadata.version(
+        'publ')  # ty:ignore[invalid-assignment]
+except ImportError:
+    __version__ = 'local'
+
 
 class Pushl:
     """ Top-level process controller """
